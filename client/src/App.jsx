@@ -5,6 +5,7 @@ import LobbyScreen from './screens/LobbyScreen';
 import QuizScreen from './screens/QuizScreen';
 import GuessPlayerScreen from './screens/GuessPlayerScreen';
 import PenaltyScreen from './screens/PenaltyScreen';
+import AnswerRevealScreen from './screens/AnswerRevealScreen';
 import LeaderboardScreen from './screens/LeaderboardScreen';
 import WinnerScreen from './screens/WinnerScreen';
 import HostApp from './host/HostApp';
@@ -33,6 +34,7 @@ export default function App() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [quizData, setQuizData]       = useState(null);
   const [quizReveal, setQuizReveal]   = useState(null);
+  const [timerPaused, setTimerPaused] = useState(false);
   const [guessData, setGuessData]     = useState(null);
   const [winner, setWinner]           = useState(null);
   const [roundEnd, setRoundEnd]       = useState(null);
@@ -66,8 +68,10 @@ export default function App() {
     });
     socket.on('leaderboard',  lb => setLeaderboard(lb));
 
-    socket.on('quiz:question', data => { setQuizReveal(null); setQuizData(data); setScreen('quiz'); });
-    socket.on('quiz:reveal',   data => setQuizReveal(data));
+    socket.on('quiz:question', data => { setQuizReveal(null); setTimerPaused(false); setQuizData(data); setScreen('quiz'); });
+    socket.on('quiz:reveal',   data => { setQuizReveal(data); setScreen('answer-reveal'); });
+    socket.on('timer:paused',  ()   => setTimerPaused(true));
+    socket.on('timer:resumed', ()   => setTimerPaused(false));
 
     socket.on('guess:clue',   data => { setGuessData(data); setScreen('guess'); });
     socket.on('guess:reveal', data => setGuessData(prev => ({ ...prev, revealed: data.answer })));
@@ -94,7 +98,8 @@ export default function App() {
     switch (screen) {
       case 'join':        return <JoinScreen socket={socket} />;
       case 'lobby':       return <LobbyScreen {...props} />;
-      case 'quiz':        return <QuizScreen {...props} quizData={quizData} quizReveal={quizReveal} />;
+      case 'quiz':          return <QuizScreen {...props} quizData={quizData} timerPaused={timerPaused} />;
+      case 'answer-reveal': return <AnswerRevealScreen revealData={{ ...quizReveal, feedback: quizReveal?.correct?.includes(player?.id) ? 'correct' : 'wrong' }} />;
       case 'guess':       return <GuessPlayerScreen {...props} guessData={guessData} />;
       case 'penalty':     return <PenaltyScreen socket={socket} player={player} />;
       case 'leaderboard': return <LeaderboardScreen {...props} roundEnd={roundEnd} />;

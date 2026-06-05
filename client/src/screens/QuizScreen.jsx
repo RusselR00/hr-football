@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const OPTION_STYLES = [
   { bg: 'from-red-500 to-red-700',    active: 'ring-red-300' },
@@ -8,12 +8,10 @@ const OPTION_STYLES = [
 ];
 const LABELS = ['A','B','C','D'];
 
-export default function QuizScreen({ socket, quizData, quizReveal }) {
+export default function QuizScreen({ socket, quizData, timerPaused }) {
   const [selected, setSelected]       = useState(null);
   const [timeLeft, setTimeLeft]       = useState(20);
-  const [feedback, setFeedback]       = useState(null);
-  const [explTimer, setExplTimer]     = useState(0);
-  const explRef = useRef(null);
+  const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
     // alreadyAnswered is set when server syncs a reconnecting player
@@ -24,24 +22,11 @@ export default function QuizScreen({ socket, quizData, quizReveal }) {
   }, [quizData?.index]);
 
   useEffect(() => {
-    if (!quizData) return;
-    // Use a ref to avoid stale closure; restart whenever question or timeLimit changes
+    if (!quizData || timerPaused) return;
     const iv = setInterval(() => setTimeLeft(t => Math.max(0, t - 1)), 1000);
     return () => clearInterval(iv);
-  }, [quizData?.index, quizData?.timeLimit]);
+  }, [quizData?.index, quizData?.timeLimit, timerPaused]);
 
-  useEffect(() => {
-    if (!quizReveal) return;
-    if (selected !== null) setFeedback(selected === quizReveal.correctIndex ? 'correct' : 'wrong');
-    if (quizReveal.explanation) {
-      setExplTimer(10);
-      clearInterval(explRef.current);
-      explRef.current = setInterval(() => {
-        setExplTimer(t => { if (t <= 1) { clearInterval(explRef.current); return 0; } return t - 1; });
-      }, 1000);
-    }
-    return () => clearInterval(explRef.current);
-  }, [quizReveal]);
 
   const answer = (idx) => {
     if (selected !== null || quizReveal) return;
@@ -65,20 +50,26 @@ export default function QuizScreen({ socket, quizData, quizReveal }) {
           </span>
         </div>
 
-        {/* Timer ring */}
-        <div className="relative w-14 h-14">
-          <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-            <circle cx="28" cy="28" r="23" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4"/>
-            <circle cx="28" cy="28" r="23" fill="none" stroke={timerColor} strokeWidth="4"
-              strokeDasharray={`${2 * Math.PI * 23}`}
-              strokeDashoffset={`${2 * Math.PI * 23 * (1 - pct / 100)}`}
-              style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
-              strokeLinecap="round"/>
-          </svg>
-          <span className="absolute inset-0 flex items-center justify-center text-white font-black text-lg">
-            {timeLeft}
-          </span>
-        </div>
+        {/* Timer ring / pause indicator */}
+        {timerPaused ? (
+          <div className="w-14 h-14 rounded-full bg-yellow-500/20 border-2 border-yellow-400/50 flex items-center justify-center animate-pulse">
+            <span className="text-yellow-300 text-xl">⏸</span>
+          </div>
+        ) : (
+          <div className="relative w-14 h-14">
+            <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+              <circle cx="28" cy="28" r="23" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4"/>
+              <circle cx="28" cy="28" r="23" fill="none" stroke={timerColor} strokeWidth="4"
+                strokeDasharray={`${2 * Math.PI * 23}`}
+                strokeDashoffset={`${2 * Math.PI * 23 * (1 - pct / 100)}`}
+                style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
+                strokeLinecap="round"/>
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-white font-black text-lg">
+              {timeLeft}
+            </span>
+          </div>
+        )}
 
         <div className="bg-white/10 px-3 py-2 rounded-xl">
           <span className="text-white/70 text-sm font-bold">⚽ Quiz</span>
@@ -132,34 +123,16 @@ export default function QuizScreen({ socket, quizData, quizReveal }) {
         })}
       </div>
 
-      {/* ── FEEDBACK + EXPLANATION ── */}
-      <div className="px-4 pb-6 pt-3 flex-shrink-0 space-y-2">
-        {feedback && (
-          <div className={`text-center py-3 rounded-2xl font-black text-2xl animate-bounce-in ${
-            feedback === 'correct'
-              ? 'bg-green-500/30 border border-green-400/40 text-green-300'
-              : 'bg-red-500/30 border border-red-400/40 text-red-300'
-          }`}>
-            {feedback === 'correct' ? '🎉 Correct!' : '❌ Incorrect!'}
+      {/* Locked-in confirmation */}
+      <div className="px-4 pb-6 pt-3 flex-shrink-0">
+        {selected !== null && (
+          <div className="text-center py-3 rounded-2xl bg-white/10 border border-white/20 text-white/60 font-semibold animate-fade-in">
+            ✅ Answer locked in — waiting for host to reveal…
           </div>
         )}
-
-        {/* Explanation shown to everyone after reveal */}
-        {quizReveal?.explanation && (
-          <div className="bg-blue-900/40 border border-blue-400/30 rounded-2xl px-4 py-3 animate-fade-in">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-blue-300 text-xs font-bold uppercase tracking-wider">💡 Did you know?</p>
-              {explTimer > 0 && (
-                <span className="text-blue-400/60 text-xs font-bold tabular-nums">{explTimer}s</span>
-              )}
-            </div>
-            <p className="text-white/80 text-sm leading-snug">{quizReveal.explanation}</p>
-          </div>
-        )}
-
-        {selected !== null && !feedback && !quizReveal && (
-          <div className="text-center py-4 rounded-2xl bg-white/10 border border-white/20 text-white/60 font-semibold animate-fade-in">
-            ✅ Locked in — waiting for reveal…
+        {timerPaused && (
+          <div className="text-center py-3 rounded-2xl bg-yellow-500/15 border border-yellow-400/30 text-yellow-300 font-semibold animate-fade-in mt-2">
+            ⏸ Timer paused by host
           </div>
         )}
       </div>

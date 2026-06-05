@@ -47,6 +47,7 @@ export default function HostApp() {
   const [playerUrl, setPlayerUrl]   = useState('');
   const [confirm, setConfirm]   = useState(null);
   const [penaltyProgress, setPenaltyProgress] = useState({ done: 0, total: 0 });
+  const [quizState, setQuizState] = useState({ index: 0, total: 0, paused: false, revealed: false, correctCount: 0, totalAnswered: 0 });
 
   useEffect(() => {
     setPlayerUrl(window.location.origin);
@@ -61,7 +62,8 @@ export default function HostApp() {
     socket.on('host:state', ({ phase: p, players: pl, roomCode: rc }) => { setPhase(p); setPlayers(pl); setRoomCode(rc); });
     socket.on('host:player-joined', ({ players: pl }) => setPlayers({ ...pl }));
     socket.on('leaderboard', lb => setLeaderboard(lb));
-    socket.on('quiz:question', () => setPhase('quiz'));
+    socket.on('quiz:question',    () => { setPhase('quiz'); setQuizState(q => ({ ...q, revealed: false, paused: false })); });
+    socket.on('host:quiz-state',  s  => setQuizState(s));
     socket.on('guess:clue', () => setPhase('guess-player'));
     socket.on('penalty:start', () => setPhase('penalty'));
     socket.on('game:winner', () => setPhase('winner'));
@@ -137,29 +139,107 @@ export default function HostApp() {
       {/* Game Controls */}
       <Card>
         <SectionTitle>🎮 Game Controls</SectionTitle>
-        <div className="space-y-2">
-          {config.next && config.canAdvance && (
-            <button onClick={advance}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black text-base py-4 rounded-xl shadow-lg btn-press">
-              {config.next} →
-            </button>
-          )}
-          {!config.canAdvance && (
-            <div className="w-full bg-white/5 border border-white/10 text-white/40 text-sm py-3 rounded-xl text-center font-semibold">
-              ⏳ Round in progress — wait for it to finish
+        <div className="space-y-3">
+
+          {/* ── Quiz slideshow controls ── */}
+          {(phase === 'quiz' || phase === 'quiz-done') && (
+            <div className="space-y-2">
+
+              {/* Progress bar */}
+              <div className="flex items-center justify-between text-xs text-white/40 mb-1">
+                <span>Q{quizState.index + 1} of {quizState.total}</span>
+                {quizState.revealed && (
+                  <span className="text-green-400 font-bold">
+                    ✓ {quizState.correctCount}/{quizState.totalAnswered} correct
+                  </span>
+                )}
+                {quizState.paused && <span className="text-yellow-400 font-bold">⏸ Paused</span>}
+              </div>
+              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-2">
+                <div className="h-full bg-green-500 rounded-full transition-all"
+                  style={{ width: `${quizState.total ? ((quizState.index + 1) / quizState.total) * 100 : 0}%` }} />
+              </div>
+
+              {/* Media player row */}
+              <div className="grid grid-cols-5 gap-1.5">
+                {/* Prev question */}
+                <button
+                  onClick={() => socket.emit('host:goto-question', { index: quizState.index - 1 })}
+                  disabled={quizState.index <= 0}
+                  className="bg-white/10 border border-white/15 text-white font-black py-3 rounded-xl btn-press hover:bg-white/20 disabled:opacity-30 text-lg"
+                  title="Previous question">⏮</button>
+
+                {/* Pause / Resume */}
+                <button
+                  onClick={() => socket.emit(quizState.paused ? 'host:resume-timer' : 'host:pause-timer')}
+                  disabled={quizState.revealed}
+                  className={`border font-black py-3 rounded-xl btn-press text-lg disabled:opacity-30 ${
+                    quizState.paused
+                      ? 'bg-yellow-500/30 border-yellow-400/40 text-yellow-300 hover:bg-yellow-500/40'
+                      : 'bg-white/10 border-white/15 text-white hover:bg-white/20'
+                  }`}
+                  title={quizState.paused ? 'Resume timer' : 'Pause timer'}>
+                  {quizState.paused ? '▶' : '⏸'}
+                </button>
+
+                {/* Show Answer */}
+                <button
+                  onClick={() => socket.emit('host:show-answer')}
+                  disabled={quizState.revealed}
+                  className="bg-blue-600/30 border border-blue-500/40 text-blue-300 font-black py-3 rounded-xl btn-press hover:bg-blue-600/40 disabled:opacity-30 text-xs"
+                  title="Show answer now">
+                  {quizState.revealed ? '✓ Shown' : '👁 Answer'}
+                </button>
+
+                {/* Skip timer */}
+                <button
+                  onClick={() => socket.emit('host:skip')}
+                  disabled={quizState.revealed}
+                  className="bg-white/10 border border-white/15 text-white/70 font-bold py-3 rounded-xl btn-press hover:bg-white/20 disabled:opacity-30 text-lg"
+                  title="Skip to answer">⏭</button>
+
+                {/* Next question */}
+                <button
+                  onClick={() => socket.emit('host:goto-question', { index: quizState.index + 1 })}
+                  disabled={quizState.index >= quizState.total - 1}
+                  className="bg-white/10 border border-white/15 text-white font-black py-3 rounded-xl btn-press hover:bg-white/20 disabled:opacity-30 text-lg"
+                  title="Next question">⏭</button>
+              </div>
+
+              {/* Legend */}
+              <div className="flex justify-around text-white/25 text-xs pt-1">
+                <span>⏮ Prev</span><span>⏸ Pause</span><span>👁 Answer</span><span>⏭ Skip</span><span>⏭ Next</span>
+              </div>
             </div>
           )}
-          {['quiz', 'guess-player'].includes(phase) && (
-            <button onClick={skip}
-              className="w-full bg-white/10 border border-white/15 text-white/70 font-semibold py-3 rounded-xl btn-press text-sm hover:bg-white/20">
-              ⏭ Skip to Reveal
+
+          {/* ── Guess player skip ── */}
+          {phase === 'guess-player' && (
+            <button onClick={() => socket.emit('host:show-answer')}
+              className="w-full bg-blue-600/30 border border-blue-500/40 text-blue-300 font-bold py-3 rounded-xl btn-press text-sm">
+              👁 Show Player Answer Now
             </button>
           )}
+
+          {/* ── Penalty progress ── */}
           {phase === 'penalty' && (
             <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center">
               <p className="text-white/50 text-xs font-semibold mb-1">Penalty Progress</p>
-              <p className="text-white font-black text-xl">{penaltyProgress.done} / {penaltyProgress.total || playerCount}</p>
+              <p className="text-white font-black text-xl">{penaltyProgress.done} / {penaltyProgress.total || activeCount}</p>
               <p className="text-white/30 text-xs">players finished</p>
+            </div>
+          )}
+
+          {/* ── Round advance button ── */}
+          {config.next && config.canAdvance && (
+            <button onClick={advance}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black text-base py-4 rounded-xl shadow-lg btn-press mt-1">
+              {config.next} →
+            </button>
+          )}
+          {!config.canAdvance && phase !== 'quiz' && phase !== 'guess-player' && phase !== 'penalty' && (
+            <div className="w-full bg-white/5 border border-white/10 text-white/40 text-sm py-3 rounded-xl text-center font-semibold">
+              ⏳ Round in progress…
             </div>
           )}
         </div>

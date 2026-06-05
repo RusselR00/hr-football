@@ -56,7 +56,7 @@ function createFreshGame() {
     hostId: null,
     roomCode: 'DEEP24',
     sessionId: null,
-    quizIndex: 0, quizTimer: null, quizAnswers: {}, questionStart: 0,
+    quizIndex: 0, quizTimer: null, quizAnswers: {}, questionStart: 0, timerPaused: false, timerRemaining: 20000,
     guessIndex: 0, guessClueIndex: 0, guessTimer: null, guessAnswers: {}, clueStartedAt: 0,
     penaltyShots: {}, penaltyDone: new Set(), penaltyTimer: null,
   };
@@ -180,7 +180,10 @@ function sendQuizQuestion() {
   const q = QUIZ_QUESTIONS[game.quizIndex];
   game.quizAnswers = {};
   game.questionStart = Date.now();
+  game.timerPaused = false;
+  game.timerRemaining = 20000;
   io.emit('quiz:question', { index: game.quizIndex, total: QUIZ_QUESTIONS.length, question: q.q, options: q.options, timeLimit: 20 });
+  io.to('host').emit('host:quiz-state', { index: game.quizIndex, total: QUIZ_QUESTIONS.length, paused: false });
   clearTimeout(game.quizTimer);
   game.quizTimer = setTimeout(revealQuizAnswer, 20000);
 }
@@ -197,10 +200,20 @@ function revealQuizAnswer() {
       correct.push(sid);
     }
   });
-  io.emit('quiz:reveal', { correctIndex: q.answer, correct, explanation: q.explanation || '' });
+  const correctCount = correct.length;
+  const totalAnswered = Object.keys(game.quizAnswers).length;
+  io.emit('quiz:reveal', {
+    correctIndex: q.answer,
+    correct,
+    correctCount,
+    totalAnswered,
+    explanation: q.explanation || '',
+    question: q.q,
+    options: q.options,
+  });
+  io.to('host').emit('host:quiz-state', { index: game.quizIndex, total: QUIZ_QUESTIONS.length, paused: false, revealed: true, correctCount, totalAnswered });
   broadcastLeaderboard();
-  const delay = q.explanation ? 10000 : 3000;
-  setTimeout(() => { game.quizIndex++; sendQuizQuestion(); }, delay);
+  // Do NOT auto-advance — host controls when to go to next question
 }
 
 function endQuizRound() {
@@ -374,10 +387,49 @@ io.on('connection', socket => {
   socket.on('host:start-guess',   safe(() => { if (socket.id === game.hostId && game.phase === 'quiz-done')  startGuessPlayer(); }));
   socket.on('host:start-penalty', safe(() => { if (socket.id === game.hostId && game.phase === 'guess-done') startPenaltyRound(); }));
 
+  // ── Slideshow controls ────────────────────────────────────────────────────
+
+  // Show answer for current question
+  socket.on('host:show-answer', safe(() => {
+    if (socket.id !== game.hostId) return;
+    if (game.phase === 'quiz')         { clearTimeout(game.quizTimer);  revealQuizAnswer();  }
+    if (game.phase === 'guess-player') { clearTimeout(game.guessTimer); revealGuessAnswer(); }
+  }));
+
+  // Go to specific question index (also works as next/prev)
+  socket.on('host:goto-question', safe(({ index } = {}) => {
+    if (socket.id !== game.hostId || game.phase !== 'quiz') return;
+    const target = Math.max(0, Math.min((QUIZ_QUESTIONS.length - 1), index));
+    clearTimeout(game.quizTimer);
+    game.quizIndex = target;
+    game.timerPaused = false;
+    sendQuizQuestion();
+  }));
+
+  // Pause the quiz timer
+  socket.on('host:pause-timer', safe(() => {
+    if (socket.id !== game.hostId || game.phase !== 'quiz' || game.timerPaused) return;
+    game.timerPaused = true;
+    game.timerRemaining = Math.max(0, 20000 - (Date.now() - game.questionStart));
+    clearTimeout(game.quizTimer);
+    io.emit('timer:paused', { remaining: Math.ceil(game.timerRemaining / 1000) });
+    io.to('host').emit('host:quiz-state', { index: game.quizIndex, total: QUIZ_QUESTIONS.length, paused: true });
+  }));
+
+  // Resume the quiz timer
+  socket.on('host:resume-timer', safe(() => {
+    if (socket.id !== game.hostId || game.phase !== 'quiz' || !game.timerPaused) return;
+    game.timerPaused = false;
+    game.questionStart = Date.now() - (20000 - game.timerRemaining);
+    game.quizTimer = setTimeout(revealQuizAnswer, game.timerRemaining);
+    io.emit('timer:resumed', { remaining: Math.ceil(game.timerRemaining / 1000) });
+    io.to('host').emit('host:quiz-state', { index: game.quizIndex, total: QUIZ_QUESTIONS.length, paused: false });
+  }));
+
   socket.on('host:skip', safe(() => {
     if (socket.id !== game.hostId) return;
     if (game.phase === 'quiz')         { clearTimeout(game.quizTimer);  revealQuizAnswer();  }
-    if (game.phase === 'guess-player') { clearTimeout(game.guessTimer); revealGuessAnswer();  }
+    if (game.phase === 'guess-player') { clearTimeout(game.guessTimer); revealGuessAnswer(); }
   }));
 
   // Only allowed from winner/lobby (normal end-of-game flow)
