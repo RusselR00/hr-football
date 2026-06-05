@@ -72,6 +72,46 @@ function persistScores() {
   if (game.sessionId) db.saveScores(game.sessionId, game.players);
 }
 
+// ─── Screen sync ─────────────────────────────────────────────────────────────
+
+function syncSocketToPhase(socket) {
+  const p = game.phase;
+  if (p === 'lobby') {
+    socket.emit('game:reset');
+    if (game.players[socket.id])
+      socket.emit('join:success', { player: game.players[socket.id], roomCode: game.roomCode });
+  } else if (p === 'quiz') {
+    const q = QUIZ_QUESTIONS[game.quizIndex];
+    if (q) socket.emit('quiz:question', { index: game.quizIndex, total: QUIZ_QUESTIONS.length, question: q.q, options: q.options, timeLimit: 20 });
+  } else if (p === 'quiz-done') {
+    socket.emit('round:end', { round: 'quiz', message: '⚽ Quiz Round Complete!' });
+  } else if (p === 'guess-player') {
+    const gp = GUESS_PLAYERS[game.guessIndex];
+    if (gp) socket.emit('guess:clue', { index: game.guessIndex, total: GUESS_PLAYERS.length, clues: gp.clues.slice(0, game.guessClueIndex + 1), clueNum: game.guessClueIndex + 1, maxPoints: Math.max(200, 1000 - game.guessClueIndex * 200) });
+  } else if (p === 'guess-done') {
+    socket.emit('round:end', { round: 'guess', message: '🕵️ Guess the Player Complete!' });
+  } else if (p === 'penalty') {
+    socket.emit('penalty:start', { totalKicks: TOTAL_KICKS });
+  } else if (p === 'winner') {
+    const lb = getLeaderboard();
+    socket.emit('game:winner', { leaderboard: lb, winner: lb[0] });
+  }
+}
+
+function pushScreenToAll(screen) {
+  const lb = getLeaderboard();
+  if (screen === 'leaderboard') {
+    io.emit('host:push-leaderboard', { leaderboard: lb });
+  } else if (screen === 'sync') {
+    io.sockets.sockets.forEach(s => {
+      if (s.id !== game.hostId) syncSocketToPhase(s);
+    });
+    io.emit('leaderboard', lb);
+  } else if (screen === 'winner') {
+    io.emit('game:winner', { leaderboard: lb, winner: lb[0] });
+  }
+}
+
 // ─── Leaderboard ─────────────────────────────────────────────────────────────
 
 function getLeaderboard() {
@@ -241,6 +281,11 @@ io.on('connection', socket => {
     io.to('host').emit('host:player-joined', { players: game.players });
     broadcastLeaderboard();
     console.log(`  player joined: ${playerName} (total: ${Object.keys(game.players).length})`);
+  }));
+
+  socket.on('host:push-screen', safe(({ screen } = {}) => {
+    if (socket.id !== game.hostId) return;
+    pushScreenToAll(screen);
   }));
 
   socket.on('host:start-quiz',    safe(() => { if (socket.id === game.hostId && game.phase === 'lobby')      startQuiz(); }));

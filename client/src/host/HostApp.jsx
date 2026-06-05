@@ -62,6 +62,7 @@ export default function HostApp() {
   };
 
   const skip = () => socket.emit('host:skip');
+  const push = (screen) => socket.emit('host:push-screen', { screen });
 
   const config = PHASES[phase] || PHASES.lobby;
   const playerCount = Object.keys(players).length;
@@ -188,6 +189,30 @@ export default function HostApp() {
               )}
             </div>
           )}
+        </div>
+
+        {/* Screen Control */}
+        <div className="bg-white/10 border border-white/20 rounded-2xl p-5">
+          <p className="text-white/60 text-sm font-semibold mb-3">📺 PUSH TO ALL SCREENS</p>
+          <div className="space-y-2">
+            <button onClick={() => push('sync')}
+              className="w-full bg-blue-600/30 border border-blue-500/40 text-blue-300 font-bold py-3 rounded-xl hover:bg-blue-600/40 transition-all btn-press text-sm">
+              🔄 Sync Everyone to Current Phase
+            </button>
+            <button onClick={() => push('leaderboard')}
+              className="w-full bg-yellow-500/20 border border-yellow-400/30 text-yellow-300 font-bold py-3 rounded-xl hover:bg-yellow-500/30 transition-all btn-press text-sm">
+              🏆 Show Leaderboard on All Phones
+            </button>
+            {phase === 'winner' && (
+              <button onClick={() => push('winner')}
+                className="w-full bg-purple-600/20 border border-purple-500/30 text-purple-300 font-bold py-3 rounded-xl hover:bg-purple-600/30 transition-all btn-press text-sm">
+                🥇 Show Winner Screen Again
+              </button>
+            )}
+          </div>
+          <p className="text-white/25 text-xs mt-3 text-center">
+            Use these to re-sync phones that dropped or show projector views
+          </p>
         </div>
 
         {/* Live Leaderboard */}

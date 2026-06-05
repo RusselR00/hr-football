@@ -56,6 +56,7 @@ export default function App() {
     socket.on('round:end',   data => { setRoundEnd(data); setScreen('leaderboard'); });
     socket.on('game:winner', data => { setWinner(data); setScreen('winner'); });
     socket.on('game:reset',  ()   => { setScreen('join'); setPlayer(null); });
+    socket.on('host:push-leaderboard', data => { setLeaderboard(data.leaderboard); setRoundEnd(null); setScreen('leaderboard'); });
 
     return () => socket.disconnect();
   }, []);
