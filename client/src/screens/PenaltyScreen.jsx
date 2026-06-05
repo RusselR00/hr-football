@@ -10,8 +10,8 @@ const TOTAL_KICKS = 5;
 
 export default function PenaltyScreen({ socket, player }) {
   // Each player tracks their own kicks independently
-  const [kickNum, setKickNum]       = useState(0);       // 0 = not started, 1-5 = kick in progress
-  const [phase, setPhase]           = useState('wait');  // wait | ready | shooting | result | done
+  const [kickNum, setKickNum]       = useState(1);       // 1-5
+  const [phase, setPhase]           = useState('ready'); // ready | shooting | result | done
   const [gkDir, setGkDir]           = useState(null);
   const [ballTarget, setBallTarget] = useState(null);
   const [ballFlying, setBallFlying] = useState(false);
@@ -24,19 +24,7 @@ export default function PenaltyScreen({ socket, player }) {
   const hasShot     = useRef(false);
   const containerRef = useRef(null);
 
-  // Host started penalty round
   useEffect(() => {
-    const onStart = () => {
-      setKickNum(1);
-      setPhase('ready');
-      setGoals(0);
-      setHistory([]);
-      setBallFlying(false);
-      setGkDir(null);
-      setIsGoal(null);
-      hasShot.current = false;
-    };
-
     const onKickResult = ({ dir, goalkeeperDir, goal, kickNum: k, totalKicks }) => {
       setGkDir(goalkeeperDir);
       setBallTarget(BALL_TARGETS[dir]);
@@ -70,12 +58,10 @@ export default function PenaltyScreen({ socket, player }) {
       }, 2500);
     };
 
-    socket.on('penalty:start',       onStart);
     socket.on('penalty:kick-result', onKickResult);
     socket.on('penalty:done',        onDone);
 
     return () => {
-      socket.off('penalty:start',       onStart);
       socket.off('penalty:kick-result', onKickResult);
       socket.off('penalty:done',        onDone);
     };
@@ -114,23 +100,6 @@ export default function PenaltyScreen({ socket, player }) {
     if (dy < -15) shoot(dx, containerRef.current?.offsetWidth || 375);
     touchStart.current = null;
   };
-
-  // ── Waiting for host to start ──────────────────────────────────────────────
-  if (phase === 'wait') {
-    return (
-      <div className="screen game-bg flex flex-col items-center justify-center px-4">
-        <div className="text-7xl mb-4">🥅</div>
-        <h2 className="text-white font-black text-2xl mb-2">Penalty Shootout</h2>
-        <p className="text-white/50 text-sm mb-6">Waiting for host to start…</p>
-        <div className="flex gap-1.5">
-          {[0,1,2].map(i => (
-            <div key={i} className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce"
-              style={{ animationDelay: `${i * 0.18}s` }}/>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   // ── All done ───────────────────────────────────────────────────────────────
   if (phase === 'done') {
