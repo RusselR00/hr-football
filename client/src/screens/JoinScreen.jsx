@@ -24,8 +24,8 @@ export default function JoinScreen({ socket }) {
       {/* Logo */}
       <div className="text-center mb-7 animate-fade-in">
         <Logo height={88} className="mb-3 animate-bounce-in" />
-        <h1 className="text-2xl font-black text-white tracking-tight leading-tight">Football Championship</h1>
-        <p className="text-blue-400 font-bold text-base mt-1">2026 ⚽</p>
+        <h1 className="text-2xl font-black text-white tracking-tight leading-tight">Football Championship 2026</h1>
+        <p className="text-blue-300 font-semibold text-sm mt-1">The Deep Seafood Company ⚽</p>
       </div>
 
       {/* Card */}
@@ -77,6 +77,7 @@ export default function JoinScreen({ socket }) {
       </div>
 
       <p className="text-white/25 text-xs mt-6 text-center">The Deep Seafood Company · HR Event 2026</p>
+
     </div>
   );
 }

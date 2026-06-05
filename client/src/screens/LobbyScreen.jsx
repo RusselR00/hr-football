@@ -57,7 +57,7 @@ export default function LobbyScreen({ player, leaderboard }) {
         ))}
       </div>
 
-      <p className="text-white/20 text-xs mt-6 text-center">Deep Seafood Football Championship 2026</p>
+      <p className="text-white/20 text-xs mt-6 text-center">The Deep Seafood Company · Football Championship 2026</p>
     </div>
   );
 }
