@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { socket } from '../socket';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -13,11 +13,12 @@ const PHASES = {
 };
 
 export default function HostApp() {
-  const [phase, setPhase] = useState('lobby');
-  const [players, setPlayers] = useState({});
+  const [phase, setPhase]       = useState('lobby');
+  const [players, setPlayers]   = useState({});
   const [leaderboard, setLeaderboard] = useState([]);
   const [roomCode, setRoomCode] = useState('DEEP24');
   const [playerUrl, setPlayerUrl] = useState('');
+  const [confirm, setConfirm]   = useState(null); // 'force-reset' | 'end-game'
 
   useEffect(() => {
     setPlayerUrl(window.location.origin);
@@ -107,6 +108,7 @@ export default function HostApp() {
             ))}
           </div>
 
+          {/* Primary advance button */}
           {config.next && config.canAdvance && (
             <button
               onClick={advance}
@@ -115,19 +117,67 @@ export default function HostApp() {
               {config.next} →
             </button>
           )}
-          {!config.canAdvance && phase !== 'lobby' && (
+          {!config.canAdvance && (
             <div className="w-full bg-white/5 border border-white/10 text-white/40 font-semibold text-sm py-3 rounded-xl text-center mb-2">
               ⏳ Round in progress — wait for it to finish
             </div>
           )}
 
-          {['quiz', 'guess-player', 'predict', 'penalty'].includes(phase) && (
+          {/* Skip current question/kick */}
+          {['quiz', 'guess-player', 'penalty'].includes(phase) && (
             <button
               onClick={skip}
-              className="w-full bg-white/10 border border-white/20 text-white/70 font-semibold py-2.5 rounded-xl hover:bg-white/20 transition-all btn-press text-sm"
+              className="w-full bg-white/10 border border-white/20 text-white/70 font-semibold py-2.5 rounded-xl hover:bg-white/20 transition-all btn-press text-sm mb-3"
             >
               ⏭ Skip to Reveal
             </button>
+          )}
+
+          {/* Danger zone */}
+          {phase !== 'lobby' && phase !== 'winner' && (
+            <div className="border-t border-white/10 pt-3 space-y-2">
+              {confirm === 'end-game' ? (
+                <div className="bg-orange-600/20 border border-orange-500/40 rounded-xl p-3">
+                  <p className="text-orange-300 text-xs font-bold mb-2 text-center">End game now with current scores?</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => { socket.emit('host:end-game'); setConfirm(null); }}
+                      className="flex-1 bg-orange-500 text-white font-black py-2 rounded-lg text-sm btn-press">
+                      Yes, End It
+                    </button>
+                    <button onClick={() => setConfirm(null)}
+                      className="flex-1 bg-white/10 text-white/60 font-semibold py-2 rounded-lg text-sm btn-press">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setConfirm('end-game')}
+                  className="w-full bg-orange-600/20 border border-orange-500/30 text-orange-300 font-semibold py-2.5 rounded-xl hover:bg-orange-600/30 transition-all btn-press text-sm">
+                  🏁 End Game &amp; Show Winner
+                </button>
+              )}
+
+              {confirm === 'force-reset' ? (
+                <div className="bg-red-700/20 border border-red-500/40 rounded-xl p-3">
+                  <p className="text-red-300 text-xs font-bold mb-2 text-center">Wipe everything and start fresh?</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => { socket.emit('host:force-reset'); setConfirm(null); }}
+                      className="flex-1 bg-red-600 text-white font-black py-2 rounded-lg text-sm btn-press">
+                      Yes, Reset All
+                    </button>
+                    <button onClick={() => setConfirm(null)}
+                      className="flex-1 bg-white/10 text-white/60 font-semibold py-2 rounded-lg text-sm btn-press">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setConfirm('force-reset')}
+                  className="w-full bg-red-700/20 border border-red-600/30 text-red-400 font-semibold py-2.5 rounded-xl hover:bg-red-700/30 transition-all btn-press text-sm">
+                  🗑 Force Reset (Clear All)
+                </button>
+              )}
+            </div>
           )}
         </div>
 

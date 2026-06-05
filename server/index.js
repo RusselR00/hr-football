@@ -271,17 +271,43 @@ io.on('connection', socket => {
     if (game.phase === 'penalty')      { clearTimeout(game.penaltyTimer); resolvePenaltyKick(); }
   }));
 
+  // Only allowed from winner/lobby (normal end-of-game flow)
   socket.on('host:reset', safe(() => {
     if (socket.id !== game.hostId) return;
-    if (game.phase !== 'winner' && game.phase !== 'lobby') {
-      socket.emit('host:error', { message: 'Cannot reset while a game is in progress.' });
-      return;
-    }
+    if (game.phase !== 'winner' && game.phase !== 'lobby') return;
     const hostId = socket.id;
     game = createFreshGame();
     game.hostId = hostId;
     io.emit('game:reset');
     console.log('Game reset by host');
+  }));
+
+  // Force-reset: kill all timers, wipe state, back to lobby immediately
+  socket.on('host:force-reset', safe(() => {
+    if (socket.id !== game.hostId) return;
+    clearTimeout(game.quizTimer);
+    clearTimeout(game.guessTimer);
+    clearTimeout(game.penaltyTimer);
+    const hostId = socket.id;
+    game = createFreshGame();
+    game.hostId = hostId;
+    io.emit('game:reset');
+    console.log('Game FORCE reset by host');
+  }));
+
+  // End game early: stop round, save scores, show winner screen
+  socket.on('host:end-game', safe(() => {
+    if (socket.id !== game.hostId) return;
+    clearTimeout(game.quizTimer);
+    clearTimeout(game.guessTimer);
+    clearTimeout(game.penaltyTimer);
+    persistScores();
+    const lb = getLeaderboard();
+    const winner = lb[0];
+    if (game.sessionId) db.endSession(game.sessionId, winner?.name, winner?.score);
+    game.phase = 'winner';
+    io.emit('game:winner', { leaderboard: lb, winner });
+    console.log('Game ended early by host');
   }));
 
   socket.on('quiz:answer', safe(({ optionIndex } = {}) => {
