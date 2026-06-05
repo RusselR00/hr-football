@@ -60,11 +60,12 @@ export default function App() {
     socket.on('disconnect', () => setConnStatus('disconnected'));
     socket.on('connect_error', () => setConnStatus('disconnected'));
 
-    socket.on('join:success', ({ player: p, rejoined }) => {
+    socket.on('join:success', ({ player: p }) => {
+      // Always go to lobby first — syncSocketToPhase will push game screens on top
       localStorage.setItem('dsfc_player', JSON.stringify({ name: p.name }));
       setPlayer(p);
       setRejoining(false);
-      if (!rejoined) setScreen('lobby'); // rejoined players get synced by server
+      setScreen('lobby');
     });
     socket.on('leaderboard',  lb => setLeaderboard(lb));
 

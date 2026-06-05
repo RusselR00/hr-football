@@ -23,7 +23,7 @@ export default function JoinScreen({ socket }) {
     <div className="screen game-bg flex flex-col items-center justify-center px-5">
       {/* Logo */}
       <div className="text-center mb-7 animate-fade-in">
-        <Logo height={140} className="mb-3 animate-bounce-in" />
+        <Logo height={90} className="mb-2 animate-bounce-in" />
         <h1 className="text-2xl font-black text-white tracking-tight leading-tight">Football Championship 2026</h1>
         <p className="text-blue-300 font-semibold text-sm mt-1">The Deep Seafood Company ⚽</p>
       </div>

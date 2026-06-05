@@ -57,7 +57,7 @@ function createFreshGame() {
     roomCode: 'DEEP24',
     sessionId: null,
     quizIndex: 0, quizTimer: null, quizAnswers: {}, questionStart: 0, timerPaused: false, timerRemaining: 20000,
-    guessIndex: 0, guessClueIndex: 0, guessTimer: null, guessAnswers: {}, clueStartedAt: 0,
+    guessIndex: 0, guessClueIndex: 0, guessTimer: null, guessAnswers: {}, clueStartedAt: 0, guessRevealPending: false,
     penaltyShots: {}, penaltyDone: new Set(), penaltyTimer: null,
   };
 }
@@ -81,8 +81,7 @@ function syncSocketToPhase(socket) {
   socket.emit('leaderboard', getLeaderboard());
 
   if (p === 'lobby') {
-    if (game.players[socket.id])
-      socket.emit('join:success', { player: game.players[socket.id], roomCode: game.roomCode, rejoined: true });
+    // Nothing to push — client already got join:success and is in lobby
 
   } else if (p === 'quiz') {
     const q = QUIZ_QUESTIONS[game.quizIndex];
@@ -235,6 +234,7 @@ function sendGuessPlayer() {
   if (game.guessIndex >= GUESS_PLAYERS.length) { endGuessRound(); return; }
   game.guessClueIndex = 0;
   game.guessAnswers = {};
+  game.guessRevealPending = false;
   revealGuessClue();
 }
 
@@ -283,12 +283,11 @@ function startPenaltyRound() {
 }
 
 function checkAllDone() {
-  const total = Object.keys(game.players).length;
+  // Only count connected players — disconnected ones won't kick
+  const connected = Object.values(game.players).filter(p => p.connected !== false);
+  const total = connected.length;
   if (total === 0) return;
-  io.to('host').emit('host:penalty-progress', {
-    done: game.penaltyDone.size,
-    total,
-  });
+  io.to('host').emit('host:penalty-progress', { done: game.penaltyDone.size, total });
   if (game.penaltyDone.size >= total) endPenaltyRound();
 }
 
@@ -383,8 +382,8 @@ io.on('connection', socket => {
     pushScreenToAll(screen);
   }));
 
-  // Host can start ANY round from lobby or any between-round phase
-  const BETWEEN_PHASES = new Set(['lobby','quiz-done','guess-done','winner']);
+  // Host can start ANY round from lobby or between-round phases (NOT winner — must reset first)
+  const BETWEEN_PHASES = new Set(['lobby','quiz-done','guess-done']);
   socket.on('host:start-quiz',    safe(() => { if (socket.id === game.hostId && BETWEEN_PHASES.has(game.phase)) startQuiz(); }));
   socket.on('host:start-guess',   safe(() => { if (socket.id === game.hostId && BETWEEN_PHASES.has(game.phase)) startGuessPlayer(); }));
   socket.on('host:start-penalty', safe(() => { if (socket.id === game.hostId && BETWEEN_PHASES.has(game.phase)) startPenaltyRound(); }));
@@ -483,7 +482,8 @@ io.on('connection', socket => {
     const norm = s => s.toLowerCase().trim();
     const correct = norm(answer || '').includes(norm(target.answer.split(' ')[1] || target.answer)) ||
                     norm(target.answer).includes(norm(answer || ''));
-    if (correct) {
+    if (correct && !game.guessRevealPending) {
+      game.guessRevealPending = true;                        // prevent double-reveal
       const maxPts = Math.max(200, 1000 - game.guessClueIndex * 200);
       game.players[socket.id].score += maxPts;
       game.players[socket.id].roundScores.guess = (game.players[socket.id].roundScores.guess || 0) + maxPts;

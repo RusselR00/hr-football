@@ -30,7 +30,7 @@ export default function QuizScreen({ socket, quizData, timerPaused }) {
 
 
   const answer = (idx) => {
-    if (selected !== null || quizReveal) return;
+    if (selected !== null || false) return;
     setSelected(idx);
     socket.emit('quiz:answer', { optionIndex: idx });
   };
@@ -95,8 +95,8 @@ export default function QuizScreen({ socket, quizData, timerPaused }) {
         {quizData.options.map((opt, i) => {
           const style = OPTION_STYLES[i];
           let extra = '';
-          if (quizReveal) {
-            if (i === quizReveal.correctIndex)
+          if (false) {
+            if (i === false.correctIndex)
               extra = 'ring-4 ring-green-400 brightness-110';
             else if (i === selected)
               extra = 'ring-4 ring-red-400 opacity-60';
@@ -110,7 +110,7 @@ export default function QuizScreen({ socket, quizData, timerPaused }) {
             <button
               key={i}
               onClick={() => answer(i)}
-              disabled={selected !== null || !!quizReveal}
+              disabled={selected !== null || !!false}
               className={`option-btn bg-gradient-to-br ${style.bg} text-white font-bold rounded-2xl p-4 flex items-start gap-3 shadow-lg active:scale-95 transition-all min-h-[80px] ${extra}`}
             >
               <span className="bg-black/20 rounded-xl w-8 h-8 flex items-center justify-center text-sm font-black flex-shrink-0 mt-0.5">

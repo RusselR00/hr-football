@@ -58,6 +58,8 @@ export default function HostApp() {
 
     socket.connect();
     socket.emit('host:join');
+    // Re-sync whenever socket reconnects (handles host page refresh / network drop)
+    socket.on('connect', () => socket.emit('host:join'));
 
     socket.on('host:state', ({ phase: p, players: pl, roomCode: rc }) => { setPhase(p); setPlayers(pl); setRoomCode(rc); });
     socket.on('host:player-joined', ({ players: pl }) => setPlayers({ ...pl }));

@@ -25,6 +25,9 @@ export default function PenaltyScreen({ socket, player }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
+    const timers = [];
+    const t = (fn, ms) => { const id = setTimeout(fn, ms); timers.push(id); };
+
     // Reconnect mid-penalty: restore existing shots and jump to next kick
     const onResume = ({ shots, nextKick, totalKicks }) => {
       const hist = shots.map(s => ({ goal: s.goal }));
@@ -42,18 +45,15 @@ export default function PenaltyScreen({ socket, player }) {
     const onKickResult = ({ dir, goalkeeperDir, goal, kickNum: k, totalKicks }) => {
       setGkDir(goalkeeperDir);
       setBallTarget(BALL_TARGETS[dir]);
-      setTimeout(() => setBallFlying(true), 30);
-
-      setTimeout(() => {
+      t(() => setBallFlying(true), 30);
+      t(() => {
         setIsGoal(goal);
         setPhase('result');
         if (goal) setGoals(g => g + 1);
         setHistory(h => [...h, { goal }]);
       }, 400);
-
-      // Auto-advance to next kick after showing result
       if (k < totalKicks) {
-        setTimeout(() => {
+        t(() => {
           setKickNum(k + 1);
           setPhase('ready');
           setBallFlying(false);
@@ -65,11 +65,7 @@ export default function PenaltyScreen({ socket, player }) {
     };
 
     const onDone = ({ goals: g, pts }) => {
-      setTimeout(() => {
-        setGoals(g);
-        setPtsEarned(pts);
-        setPhase('done');
-      }, 2500);
+      t(() => { setGoals(g); setPtsEarned(pts); setPhase('done'); }, 2500);
     };
 
     socket.on('penalty:resume',      onResume);
@@ -77,6 +73,7 @@ export default function PenaltyScreen({ socket, player }) {
     socket.on('penalty:done',        onDone);
 
     return () => {
+      timers.forEach(clearTimeout);
       socket.off('penalty:resume',      onResume);
       socket.off('penalty:kick-result', onKickResult);
       socket.off('penalty:done',        onDone);
