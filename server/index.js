@@ -370,6 +370,19 @@ app.get('/api/results/:sessionId', (req, res) => {
   res.json(results);
 });
 
+app.get('/api/network-ip', (req, res) => {
+  const { networkInterfaces } = require('os');
+  const nets = networkInterfaces();
+  let ip = 'localhost';
+  for (const iface of Object.values(nets)) {
+    for (const alias of iface) {
+      if (alias.family === 'IPv4' && !alias.internal) { ip = alias.address; break; }
+    }
+    if (ip !== 'localhost') break;
+  }
+  res.json({ ip });
+});
+
 app.get('/api/qr', async (req, res) => {
   const url = req.query.url || 'http://localhost:5173';
   try {

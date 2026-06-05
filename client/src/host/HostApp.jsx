@@ -18,10 +18,18 @@ export default function HostApp() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [roomCode, setRoomCode] = useState('DEEP24');
   const [playerUrl, setPlayerUrl] = useState('');
+  const [networkUrl, setNetworkUrl] = useState('');
   const [confirm, setConfirm]   = useState(null); // 'force-reset' | 'end-game'
 
   useEffect(() => {
     setPlayerUrl(window.location.origin);
+    fetch('/api/network-ip')
+      .then(r => r.json())
+      .then(({ ip }) => {
+        const port = window.location.port || '80';
+        setNetworkUrl(`http://${ip}:${port}`);
+      })
+      .catch(() => setNetworkUrl(window.location.origin));
     socket.connect();
     socket.emit('host:join');
 
@@ -57,7 +65,7 @@ export default function HostApp() {
 
   const config = PHASES[phase] || PHASES.lobby;
   const playerCount = Object.keys(players).length;
-  const joinUrl = playerUrl;
+  const joinUrl = networkUrl || playerUrl;
 
   return (
     <div style={{ background: 'linear-gradient(135deg, #0D47A1 0%, #0a0f1e 60%)' }} className="min-h-screen p-4 font-display">
@@ -80,7 +88,8 @@ export default function HostApp() {
           <div className="bg-white rounded-2xl p-3">
             <QRCodeSVG value={joinUrl} size={180} fgColor="#1565C0" />
           </div>
-          <p className="text-white/50 text-xs mt-3 text-center break-all">{joinUrl}</p>
+          <p className="text-white/80 text-sm font-bold mt-3 text-center break-all">{joinUrl}</p>
+          <p className="text-white/40 text-xs text-center mt-1">Players scan this to join</p>
           <div className="mt-3 bg-white/10 rounded-xl px-4 py-2 text-center w-full">
             <span className="text-white/60 text-xs">Players Connected: </span>
             <span className="text-white font-black text-lg">{playerCount}</span>
