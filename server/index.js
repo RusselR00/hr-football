@@ -397,6 +397,18 @@ io.on('connection', socket => {
     if (game.phase === 'guess-player') { clearTimeout(game.guessTimer); revealGuessAnswer(); }
   }));
 
+  // Finish the current round and move to the *-done state
+  socket.on('host:end-round', safe(() => {
+    if (socket.id !== game.hostId) return;
+    if (game.phase === 'quiz' || game.phase === 'quiz-done') {
+      clearTimeout(game.quizTimer);
+      endQuizRound();
+    } else if (game.phase === 'guess-player' || game.phase === 'guess-done') {
+      clearTimeout(game.guessTimer);
+      endGuessRound();
+    }
+  }));
+
   // Go to specific question index (also works as next/prev)
   socket.on('host:goto-question', safe(({ index } = {}) => {
     if (socket.id !== game.hostId || game.phase !== 'quiz') return;

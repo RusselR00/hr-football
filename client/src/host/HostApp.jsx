@@ -231,6 +231,19 @@ export default function HostApp() {
             </div>
           )}
 
+          {/* ── Finish round button (always visible while a round is live) ── */}
+          {['quiz','quiz-done','guess-player','guess-done'].includes(phase) && (
+            <div className="border-t border-white/10 pt-3">
+              <button
+                onClick={() => socket.emit('host:end-round')}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black text-base py-4 rounded-xl shadow-lg btn-press"
+              >
+                ✅ Finish Round &amp; Choose Next →
+              </button>
+              <p className="text-white/30 text-xs text-center mt-1">Ends round — round selector appears below</p>
+            </div>
+          )}
+
           {/* ── Free round selection (available between rounds) ── */}
           {['lobby','quiz-done','guess-done','winner'].includes(phase) && (
             <div className="border-t border-white/10 pt-3 space-y-2">
