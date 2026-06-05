@@ -62,6 +62,9 @@ function createFreshGame() {
   };
 }
 
+// Purge timers keyed by player NAME (not socket ID — socket ID changes on reconnect)
+const purgeTimers = {};
+
 // ─── DB helpers ───────────────────────────────────────────────────────────────
 
 function persistScores() {
@@ -271,11 +274,13 @@ io.on('connection', socket => {
 
     // ── Reconnect: find disconnected player with same name ──
     const reconnectEntry = Object.entries(game.players).find(
-      ([, p]) => p.name === playerName && !p.connected
+      ([, p]) => p.name === playerName && p.connected === false
     );
 
     if (reconnectEntry) {
       const [oldSid, existing] = reconnectEntry;
+      // Cancel pending purge for this player
+      if (purgeTimers[playerName]) { clearTimeout(purgeTimers[playerName]); delete purgeTimers[playerName]; }
       // Move to new socket ID
       game.players[socket.id] = { ...existing, id: socket.id, connected: true };
       delete game.players[oldSid];
@@ -427,17 +432,24 @@ io.on('connection', socket => {
 
   socket.on('disconnect', safe(() => {
     console.log('- disconnected:', socket.id);
-    if (game.players[socket.id]) {
+    const p = game.players[socket.id];
+    if (p) {
       // Mark as disconnected but keep data so they can rejoin
-      game.players[socket.id].connected = false;
-      game.players[socket.id].disconnectedAt = Date.now();
+      p.connected = false;
+      p.disconnectedAt = Date.now();
+      const name = p.name;
       io.to('host').emit('host:player-joined', { players: game.players });
+      console.log(`  marked disconnected: ${name}`);
 
-      // Purge after 2 minutes if still not reconnected
-      setTimeout(() => {
-        if (game.players[socket.id] && !game.players[socket.id].connected) {
-          console.log(`  purging disconnected player: ${game.players[socket.id].name}`);
-          delete game.players[socket.id];
+      // Purge keyed by NAME after 2 min if still not reconnected
+      if (purgeTimers[name]) clearTimeout(purgeTimers[name]);
+      purgeTimers[name] = setTimeout(() => {
+        delete purgeTimers[name];
+        // Find by name (may have new socket ID if they reconnected)
+        const entry = Object.entries(game.players).find(([, pl]) => pl.name === name && pl.connected === false);
+        if (entry) {
+          console.log(`  purging: ${name}`);
+          delete game.players[entry[0]];
           io.to('host').emit('host:player-joined', { players: game.players });
           broadcastLeaderboard();
         }

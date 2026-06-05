@@ -75,8 +75,10 @@ export default function HostApp() {
     return () => socket.disconnect();
   }, []);
 
-  const config     = PHASES[phase] || PHASES.lobby;
-  const playerCount = Object.keys(players).length;
+  const config      = PHASES[phase] || PHASES.lobby;
+  const allPlayers  = Object.values(players);
+  const playerCount = allPlayers.length;
+  const activeCount = allPlayers.filter(p => p.connected !== false).length;
   const joinUrl     = networkUrl || playerUrl;
   const currentStep = PHASE_STEPS.indexOf(phase);
 
@@ -103,7 +105,9 @@ export default function HostApp() {
               <span className="text-white/50 text-xs">Room: </span>
               <span className="text-white font-black text-sm tracking-widest">{roomCode}</span>
               <span className="text-white/50 text-xs ml-2">· </span>
-              <span className="text-white font-black text-sm">{playerCount} joined</span>
+              <span className="text-green-400 font-black text-sm">{activeCount}</span>
+              {playerCount !== activeCount && <span className="text-red-400 text-xs font-bold"> /{playerCount}</span>}
+              <span className="text-white/50 text-xs"> active</span>
             </div>
           </div>
         </Card>
@@ -307,8 +311,12 @@ export default function HostApp() {
             }`}>
               {config.label}
             </div>
-            <div className="bg-white/10 px-2 py-1 rounded-full">
-              <span className="text-white text-xs font-bold">{playerCount} 👥</span>
+            <div className="bg-white/10 px-2 py-1 rounded-full flex items-center gap-1">
+              <span className="text-white text-xs font-bold">{activeCount}</span>
+              {playerCount !== activeCount && (
+                <span className="text-red-400 text-xs font-bold">/{playerCount}</span>
+              )}
+              <span className="text-xs">👥</span>
             </div>
           </div>
         </div>
