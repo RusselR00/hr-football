@@ -269,7 +269,7 @@ function endGuessRound() {
 // Each player plays their own 5 kicks independently at their own pace.
 // Server resolves each kick immediately and replies only to that player.
 
-const TOTAL_KICKS = 5;
+const TOTAL_KICKS = 10;
 
 function startPenaltyRound() {
   game.phase = 'penalty';
@@ -514,9 +514,20 @@ io.on('connection', socket => {
     const shots = game.penaltyShots[socket.id];
     if (!shots || shots.length >= TOTAL_KICKS) return; // already done
 
-    const dir   = [0, 1, 2].includes(direction) ? direction : Math.floor(Math.random() * 3);
-    const gkDir = Math.floor(Math.random() * 3);
-    const goal  = dir !== gkDir;
+    // 5 zones: 0=leftCorner 1=leftCenter 2=center 3=rightCenter 4=rightCorner
+    const ZONES = 5;
+    const dir = [0,1,2,3,4].includes(direction) ? direction : Math.floor(Math.random() * ZONES);
+
+    // Smart GK: 38% chance saves the exact zone, otherwise picks random other zone
+    let gkDir;
+    if (Math.random() < 0.38) {
+      gkDir = dir; // save!
+    } else {
+      // Pick a random zone that is NOT the player's zone
+      const others = [0,1,2,3,4].filter(z => z !== dir);
+      gkDir = others[Math.floor(Math.random() * others.length)];
+    }
+    const goal = dir !== gkDir;
 
     shots.push({ dir, gkDir, goal });
     if (goal) game.players[socket.id].penaltyGoals++;
