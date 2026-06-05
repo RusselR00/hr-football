@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  server:
+    image: ghcr.io/russelr00/hr-football-server:latest
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    environment:
+      - PORT=3001
+
+  client:
+    image: ghcr.io/russelr00/hr-football-client:latest
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    depends_on:
+      - server
