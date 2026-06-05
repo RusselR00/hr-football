@@ -260,10 +260,17 @@ export default function HostApp() {
           : (
             <div className="space-y-2">
               {Object.values(players).map((p, i) => (
-                <div key={p.id} className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-3 rounded-xl">
+                <div key={p.id} className={`flex items-center gap-3 border px-4 py-3 rounded-xl transition-all ${
+                  p.connected === false
+                    ? 'bg-red-900/20 border-red-500/20 opacity-60'
+                    : 'bg-white/5 border-white/10'
+                }`}>
                   <span className="text-white/30 text-xs w-5">#{i + 1}</span>
                   <span className="text-xl">{p.name.split(' ')[0]}</span>
                   <span className="text-white/80 font-medium flex-1">{p.name.split(' ').slice(1).join(' ')}</span>
+                  {p.connected === false && (
+                    <span className="text-red-400 text-xs font-bold">📵 dropped</span>
+                  )}
                   <span className="text-white/40 text-xs">
                     {leaderboard.find(l => l.id === p.id)?.score?.toLocaleString() || '0'} pts
                   </span>

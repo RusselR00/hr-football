@@ -265,12 +265,50 @@ io.on('connection', socket => {
 
   socket.on('player:join', safe(({ name } = {}) => {
     if (!name?.trim()) { socket.emit('join:error', { message: 'Name required' }); return; }
-    if (game.phase !== 'lobby') { socket.emit('join:error', { message: 'Game already started!' }); return; }
+
+    const playerName = name.trim().substring(0, 22);
+
+    // ── Reconnect: find disconnected player with same name ──
+    const reconnectEntry = Object.entries(game.players).find(
+      ([, p]) => p.name === playerName && !p.connected
+    );
+
+    if (reconnectEntry) {
+      const [oldSid, existing] = reconnectEntry;
+      // Move to new socket ID
+      game.players[socket.id] = { ...existing, id: socket.id, connected: true };
+      delete game.players[oldSid];
+      // Move penalty shots if mid-round
+      if (game.penaltyShots[oldSid]) {
+        game.penaltyShots[socket.id] = game.penaltyShots[oldSid];
+        delete game.penaltyShots[oldSid];
+      }
+      if (game.penaltyDone?.has(oldSid)) {
+        game.penaltyDone.delete(oldSid);
+        game.penaltyDone.add(socket.id);
+      }
+      socket.join('players');
+      socket.emit('join:success', { player: game.players[socket.id], roomCode: game.roomCode, rejoined: true });
+      io.to('host').emit('host:player-joined', { players: game.players });
+      broadcastLeaderboard();
+      // Sync back to current game screen
+      syncSocketToPhase(socket);
+      // If penalty and already done all kicks, send done event
+      const shots = game.penaltyShots[socket.id] || [];
+      if (game.phase === 'penalty' && shots.length >= TOTAL_KICKS) {
+        const goals = game.players[socket.id].penaltyGoals || 0;
+        socket.emit('penalty:done', { goals, pts: game.players[socket.id].roundScores?.penalty || 0, totalKicks: TOTAL_KICKS });
+      }
+      console.log(`  player RECONNECTED: ${playerName}`);
+      return;
+    }
+
+    // ── New join: only allowed in lobby ──
+    if (game.phase !== 'lobby') { socket.emit('join:error', { message: 'Game already started — ask HR to let you back in.' }); return; }
 
     if (!game.sessionId) game.sessionId = db.startSession();
 
-    const playerName = name.trim().substring(0, 22);
-    game.players[socket.id] = { id: socket.id, name: playerName, score: 0, roundScores: {}, penaltyGoals: 0, joinedAt: Date.now() };
+    game.players[socket.id] = { id: socket.id, name: playerName, score: 0, roundScores: {}, penaltyGoals: 0, joinedAt: Date.now(), connected: true };
     db.upsertPlayer(game.sessionId, socket.id, playerName);
 
     socket.join('players');
@@ -389,9 +427,20 @@ io.on('connection', socket => {
   socket.on('disconnect', safe(() => {
     console.log('- disconnected:', socket.id);
     if (game.players[socket.id]) {
-      delete game.players[socket.id];
+      // Mark as disconnected but keep data so they can rejoin
+      game.players[socket.id].connected = false;
+      game.players[socket.id].disconnectedAt = Date.now();
       io.to('host').emit('host:player-joined', { players: game.players });
-      broadcastLeaderboard();
+
+      // Purge after 2 minutes if still not reconnected
+      setTimeout(() => {
+        if (game.players[socket.id] && !game.players[socket.id].connected) {
+          console.log(`  purging disconnected player: ${game.players[socket.id].name}`);
+          delete game.players[socket.id];
+          io.to('host').emit('host:player-joined', { players: game.players });
+          broadcastLeaderboard();
+        }
+      }, 2 * 60 * 1000);
     }
   }));
 

@@ -11,8 +11,13 @@ import HostApp from './host/HostApp';
 
 const isHost = window.location.pathname === '/host';
 
-function ConnectionBanner({ status }) {
-  if (status === 'connected') return null;
+function ConnectionBanner({ status, rejoining }) {
+  if (status === 'connected' && !rejoining) return null;
+  if (rejoining) return (
+    <div className="fixed top-0 left-0 right-0 z-50 text-center py-2 text-sm font-bold bg-blue-600 text-white">
+      🔄 Reconnecting you to the game…
+    </div>
+  );
   return (
     <div className={`fixed top-0 left-0 right-0 z-50 text-center py-2 text-sm font-bold ${
       status === 'connecting' ? 'bg-yellow-500 text-yellow-900' : 'bg-red-600 text-white'
@@ -32,17 +37,33 @@ export default function App() {
   const [winner, setWinner]           = useState(null);
   const [roundEnd, setRoundEnd]       = useState(null);
   const [connStatus, setConnStatus]   = useState('connecting');
+  const [rejoining, setRejoining]     = useState(false);
 
   useEffect(() => {
     if (isHost) return;
 
     socket.connect();
 
-    socket.on('connect',    () => setConnStatus('connected'));
+    socket.on('connect', () => {
+      setConnStatus('connected');
+      // Auto-rejoin if we have a saved session
+      const saved = localStorage.getItem('dsfc_player');
+      if (saved) {
+        try {
+          const { name } = JSON.parse(saved);
+          if (name) { setRejoining(true); socket.emit('player:join', { name }); }
+        } catch (_) {}
+      }
+    });
     socket.on('disconnect', () => setConnStatus('disconnected'));
     socket.on('connect_error', () => setConnStatus('disconnected'));
 
-    socket.on('join:success', ({ player: p }) => { setPlayer(p); setScreen('lobby'); });
+    socket.on('join:success', ({ player: p, rejoined }) => {
+      localStorage.setItem('dsfc_player', JSON.stringify({ name: p.name }));
+      setPlayer(p);
+      setRejoining(false);
+      if (!rejoined) setScreen('lobby'); // rejoined players get synced by server
+    });
     socket.on('leaderboard',  lb => setLeaderboard(lb));
 
     socket.on('quiz:question', data => { setQuizReveal(null); setQuizData(data); setScreen('quiz'); });
@@ -55,7 +76,10 @@ export default function App() {
 
     socket.on('round:end',   data => { setRoundEnd(data); setScreen('leaderboard'); });
     socket.on('game:winner', data => { setWinner(data); setScreen('winner'); });
-    socket.on('game:reset',  ()   => { setScreen('join'); setPlayer(null); });
+    socket.on('game:reset',  ()   => {
+      localStorage.removeItem('dsfc_player');
+      setScreen('join'); setPlayer(null);
+    });
     socket.on('host:push-leaderboard', data => { setLeaderboard(data.leaderboard); setRoundEnd(null); setScreen('leaderboard'); });
 
     return () => socket.disconnect();
@@ -80,7 +104,7 @@ export default function App() {
 
   return (
     <>
-      <ConnectionBanner status={connStatus} />
+      <ConnectionBanner status={connStatus} rejoining={rejoining} />
       {screenEl()}
     </>
   );
