@@ -385,7 +385,7 @@ export default function HostApp() {
       <div className="sticky top-0 z-30 bg-[#0a1428]/95 backdrop-blur border-b border-white/10">
         <div className="px-4 pt-3 pb-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="" className="h-9 w-auto" onError={e => e.target.style.display = 'none'} />
+            <img src="/logo.png" alt="" className="h-12 w-auto" onError={e => e.target.style.display = 'none'} />
             <div>
               <p className="text-white font-black text-sm leading-none">Host Dashboard</p>
               <p className="text-blue-400 text-xs">The Deep Seafood Company · 2026</p>

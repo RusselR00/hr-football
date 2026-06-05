@@ -113,7 +113,7 @@ export default function WinnerScreen({ winner, leaderboard, player }) {
           ))}
         </div>
 
-        <Logo height={56} className="mb-2 opacity-80" />
+        <Logo height={100} className="mb-3" />
         <p className="text-white/20 text-xs text-center mb-8">
           The Deep Seafood Company · Football Championship 2026 ⚽
         </p>

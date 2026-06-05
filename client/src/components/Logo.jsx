@@ -27,16 +27,17 @@ export default function Logo({ height = 72, className = '' }) {
   );
 }
 
-/* Compact badge for screen headers */
+/* Compact badge for screen headers — bigger now that logo is cropped */
 export function LogoBadge({ className = '' }) {
   const [failed, setFailed] = useState(false);
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center ${className}`}>
       {!failed ? (
         <img
           src="/logo.png"
           alt="The Deep Seafood Company"
-          className="h-8 w-auto object-contain"
+          className="w-auto object-contain"
+          style={{ height: 44 }}
           onError={() => setFailed(true)}
         />
       ) : (

@@ -165,7 +165,7 @@ export default function PenaltyScreen({ socket, player }) {
       }}>
         {/* Logo */}
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
-          <img src="/logo.png" alt="" className="h-7 w-auto opacity-70" onError={e => e.target.style.display='none'} />
+          <img src="/logo.png" alt="" className="h-10 w-auto opacity-80" onError={e => e.target.style.display='none'} />
         </div>
         {/* Floodlights */}
         <div className="absolute top-2 left-4 text-xl opacity-60">💡</div>
