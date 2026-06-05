@@ -22,11 +22,11 @@ export default function JoinScreen({ socket }) {
     <div className="screen game-bg flex flex-col items-center justify-center px-5">
       {/* Logo */}
       <div className="text-center mb-7 animate-fade-in">
-        <div className="text-7xl mb-3 animate-bounce-in">⚽</div>
-        <h1 className="text-3xl font-black text-white tracking-tight leading-tight">
-          Deep Seafood
-        </h1>
-        <p className="text-blue-400 font-bold text-base mt-1">Football Championship 2024</p>
+        <img src="/logo.png" alt="Deep Seafood" className="h-24 w-auto mx-auto mb-3 animate-bounce-in drop-shadow-2xl"
+          onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+        <div style={{display:'none'}} className="text-7xl mb-3">⚽</div>
+        <h1 className="text-2xl font-black text-white tracking-tight leading-tight">Football Championship</h1>
+        <p className="text-blue-400 font-bold text-base mt-1">2026 ⚽</p>
       </div>
 
       {/* Card */}
@@ -77,7 +77,7 @@ export default function JoinScreen({ socket }) {
         </button>
       </div>
 
-      <p className="text-white/25 text-xs mt-6 text-center">The Deep Seafood Company · HR Event 2024</p>
+      <p className="text-white/25 text-xs mt-6 text-center">The Deep Seafood Company · HR Event 2026</p>
     </div>
   );
 }

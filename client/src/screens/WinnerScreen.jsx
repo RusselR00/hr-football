@@ -112,8 +112,10 @@ export default function WinnerScreen({ winner, leaderboard, player }) {
           ))}
         </div>
 
+        <img src="/logo.png" alt="" className="h-12 w-auto mx-auto mb-2 opacity-60"
+          onError={e => e.target.style.display='none'} />
         <p className="text-white/20 text-xs text-center mb-8">
-          Deep Seafood Football Championship 2024 ⚽
+          Deep Seafood Football Championship 2026 ⚽
         </p>
       </div>
     </div>

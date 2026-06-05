@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { socket } from '../socket';
 import { QRCodeSVG } from 'qrcode.react';
+import QuestionManager from './QuestionManager';
 
 const PHASES = {
   lobby:         { label: 'Lobby',               next: 'Start Quiz',             event: 'host:start-quiz',    color: 'blue',   canAdvance: true },
@@ -72,9 +73,12 @@ export default function HostApp() {
     <div style={{ background: 'linear-gradient(135deg, #0D47A1 0%, #0a0f1e 60%)' }} className="min-h-screen p-4 font-display">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-white font-black text-2xl">⚽ Host Dashboard</h1>
-          <p className="text-white/50 text-sm">Deep Seafood Football Championship</p>
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="Deep Seafood" className="h-12 w-auto" onError={e => e.target.style.display='none'} />
+          <div>
+            <h1 className="text-white font-black text-xl leading-tight">Host Dashboard</h1>
+            <p className="text-blue-300 text-xs font-semibold">Deep Seafood Football Championship 2026</p>
+          </div>
         </div>
         <div className="bg-white/10 border border-white/20 px-4 py-2 rounded-xl text-center">
           <p className="text-white/50 text-xs">ROOM CODE</p>
@@ -235,6 +239,11 @@ export default function HostApp() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Question Manager — full width below the 3-col grid */}
+      <div className="mt-4">
+        <QuestionManager />
       </div>
 
       {/* Player Grid */}

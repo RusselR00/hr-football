@@ -23,30 +23,25 @@ app.use(express.json());
 const server = http.createServer(app);
 const io     = new Server(server, { cors: { origin: '*' } });
 
-// ─── Game Data ────────────────────────────────────────────────────────────────
+// ─── Game Data (loaded from DB at game start) ────────────────────────────────
 
-const QUIZ_QUESTIONS = [
-  { q: 'Which country won the 2022 FIFA World Cup?',          options: ['France','Argentina','Brazil','Germany'],           answer: 1 },
-  { q: 'Who has won the most Ballon d\'Or awards?',           options: ['Cristiano Ronaldo','Zinedine Zidane','Lionel Messi','Ronaldo Nazário'], answer: 2 },
-  { q: 'Which club is known as "The Reds"?',                  options: ['Manchester United','Arsenal','Bayern Munich','Liverpool'], answer: 3 },
-  { q: 'Who scored the infamous "Hand of God" goal?',         options: ['Pelé','Diego Maradona','Ronaldo','Zidane'],         answer: 1 },
-  { q: 'How many players are on the field per team?',         options: ['9','10','11','12'],                                  answer: 2 },
-  { q: 'Which country has won the most FIFA World Cups?',     options: ['Germany','Italy','Argentina','Brazil'],              answer: 3 },
-  { q: 'Who is the all-time top scorer in World Cup history?',options: ['Ronaldo','Pelé','Miroslav Klose','Just Fontaine'],  answer: 2 },
-  { q: 'Which club has won the most Champions League titles?', options: ['Barcelona','AC Milan','Real Madrid','Bayern Munich'], answer: 2 },
-  { q: 'In which year was the first FIFA World Cup held?',    options: ['1926','1930','1934','1938'],                         answer: 1 },
-  { q: 'Which player is nicknamed "The Egyptian King"?',      options: ['Riyad Mahrez','Mo Salah','Sadio Mané','Hakim Ziyech'], answer: 1 },
-  { q: 'What is the duration of a standard football match?',  options: ['80 minutes','90 minutes','100 minutes','120 minutes'], answer: 1 },
-  { q: 'Which country hosted the 2018 FIFA World Cup?',       options: ['Brazil','Germany','Russia','Qatar'],                 answer: 2 },
-];
+let QUIZ_QUESTIONS = [];
+let GUESS_PLAYERS  = [];
 
-const GUESS_PLAYERS = [
-  { clues: ['Born in Madeira, Portugal 🇵🇹','Plays for Al Nassr','Won 5 Champions League titles','Scored 700+ career goals'], answer: 'Cristiano Ronaldo' },
-  { clues: ['Born in Rosario, Argentina 🇦🇷','Plays for Inter Miami','Won the 2022 World Cup','Has 8 Ballon d\'Or awards'], answer: 'Lionel Messi' },
-  { clues: ['Brazilian 🇧🇷','Plays for Al-Hilal','Wears the number 10','Best friends with Messi & Suárez'], answer: 'Neymar Jr' },
-  { clues: ['English 🏴󠁧󠁢󠁥󠁮󠁧󠁿','Plays as a striker','Captains England\'s national team','Plays for Bayern Munich'], answer: 'Harry Kane' },
-  { clues: ['Norwegian 🇳🇴','Known for clinical finishing','Broke Premier League scoring records','Plays for Manchester City'], answer: 'Erling Haaland' },
-];
+function loadGameData() {
+  QUIZ_QUESTIONS = db.getActiveQuestions().map(r => ({
+    id: r.id,
+    q: r.question,
+    options: [r.opt_a, r.opt_b, r.opt_c, r.opt_d],
+    answer: r.answer,
+  }));
+  GUESS_PLAYERS = db.getActivePlayers().map(r => ({
+    id: r.id,
+    answer: r.answer,
+    clues: [r.clue1, r.clue2, r.clue3, r.clue4].filter(Boolean),
+  }));
+  console.log(`Loaded ${QUIZ_QUESTIONS.length} questions, ${GUESS_PLAYERS.length} guess players`);
+}
 
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -130,6 +125,7 @@ function broadcastLeaderboard() {
 // ─── Quiz ─────────────────────────────────────────────────────────────────────
 
 function startQuiz() {
+  loadGameData();
   game.phase = 'quiz';
   game.quizIndex = 0;
   sendQuizQuestion();
@@ -402,6 +398,40 @@ io.on('connection', socket => {
 });
 
 // ─── REST ─────────────────────────────────────────────────────────────────────
+
+// ─── Question Management API ─────────────────────────────────────────────────
+
+app.get('/api/questions', (req, res) => res.json(db.getAllQuestions()));
+app.post('/api/questions', (req, res) => {
+  try {
+    const id = db.addQuestion(req.body);
+    res.json({ id });
+  } catch(e) { res.status(400).json({ error: e.message }); }
+});
+app.patch('/api/questions/:id', (req, res) => {
+  db.updateQuestion(Number(req.params.id), req.body);
+  res.json({ ok: true });
+});
+app.delete('/api/questions/:id', (req, res) => {
+  db.deleteQuestion(Number(req.params.id));
+  res.json({ ok: true });
+});
+
+app.get('/api/guess-players', (req, res) => res.json(db.getAllGuessPLayers()));
+app.post('/api/guess-players', (req, res) => {
+  try {
+    const id = db.addGuessPlayer(req.body);
+    res.json({ id });
+  } catch(e) { res.status(400).json({ error: e.message }); }
+});
+app.patch('/api/guess-players/:id', (req, res) => {
+  db.updateGuessPlayer(Number(req.params.id), req.body);
+  res.json({ ok: true });
+});
+app.delete('/api/guess-players/:id', (req, res) => {
+  db.deleteGuessPlayer(Number(req.params.id));
+  res.json({ ok: true });
+});
 
 app.get('/api/state', (req, res) => {
   res.json({ phase: game.phase, players: Object.keys(game.players).length, roomCode: game.roomCode });
