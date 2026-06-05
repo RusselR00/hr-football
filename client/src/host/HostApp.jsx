@@ -3,11 +3,13 @@ import { socket } from '../socket';
 import { QRCodeSVG } from 'qrcode.react';
 
 const PHASES = {
-  lobby:        { label: 'Lobby',              next: 'Start Quiz',             event: 'host:start-quiz',    color: 'blue' },
-  quiz:         { label: '⚽ Quiz Round',       next: 'Start Guess the Player', event: 'host:start-guess',   color: 'green' },
-  'guess-player':{ label: '🕵️ Guess Player',   next: 'Start Penalty Shootout', event: 'host:start-penalty', color: 'purple' },
-  penalty:      { label: '🥅 Penalty Shootout', next: null,                     event: null,                 color: 'red' },
-  winner:       { label: '🏆 Game Over',        next: 'Reset Game',             event: 'host:reset',         color: 'yellow' },
+  lobby:         { label: 'Lobby',               next: 'Start Quiz',             event: 'host:start-quiz',    color: 'blue',   canAdvance: true },
+  quiz:          { label: '⚽ Quiz — Live',       next: null,                     event: null,                 color: 'green',  canAdvance: false },
+  'quiz-done':   { label: '⚽ Quiz Complete',     next: 'Start Guess the Player', event: 'host:start-guess',   color: 'green',  canAdvance: true },
+  'guess-player':{ label: '🕵️ Guess — Live',     next: null,                     event: null,                 color: 'purple', canAdvance: false },
+  'guess-done':  { label: '🕵️ Guess Complete',   next: 'Start Penalty Shootout', event: 'host:start-penalty', color: 'purple', canAdvance: true },
+  penalty:       { label: '🥅 Penalty — Live',    next: null,                     event: null,                 color: 'red',    canAdvance: false },
+  winner:        { label: '🏆 Game Over',         next: 'Reset Game',             event: 'host:reset',         color: 'yellow', canAdvance: true },
 };
 
 export default function HostApp() {
@@ -31,10 +33,14 @@ export default function HostApp() {
     socket.on('host:player-joined', ({ players: pl }) => setPlayers({ ...pl }));
     socket.on('leaderboard', (lb) => setLeaderboard(lb));
 
-    socket.on('quiz:question', ({ index }) => setPhase('quiz'));
-    socket.on('guess:clue', () => setPhase('guess-player'));
-    socket.on('penalty:kick', () => setPhase('penalty'));
-    socket.on('game:winner', () => setPhase('winner'));
+    socket.on('quiz:question', () => setPhase('quiz'));
+    socket.on('guess:clue',    () => setPhase('guess-player'));
+    socket.on('penalty:kick',  () => setPhase('penalty'));
+    socket.on('game:winner',   () => setPhase('winner'));
+    socket.on('round:end', ({ round }) => {
+      if (round === 'quiz')  setPhase('quiz-done');
+      if (round === 'guess') setPhase('guess-done');
+    });
     socket.on('game:reset', () => { setPhase('lobby'); setPlayers({}); setLeaderboard([]); });
 
     return () => socket.disconnect();
@@ -101,13 +107,18 @@ export default function HostApp() {
             ))}
           </div>
 
-          {config.next && (
+          {config.next && config.canAdvance && (
             <button
               onClick={advance}
               className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black text-lg py-4 rounded-xl shadow-lg btn-press mb-2"
             >
               {config.next} →
             </button>
+          )}
+          {!config.canAdvance && phase !== 'lobby' && (
+            <div className="w-full bg-white/5 border border-white/10 text-white/40 font-semibold text-sm py-3 rounded-xl text-center mb-2">
+              ⏳ Round in progress — wait for it to finish
+            </div>
           )}
 
           {['quiz', 'guess-player', 'predict', 'penalty'].includes(phase) && (

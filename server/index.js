@@ -123,6 +123,7 @@ function revealQuizAnswer() {
 }
 
 function endQuizRound() {
+  game.phase = 'quiz-done';
   io.emit('round:end', { round: 'quiz', message: '⚽ Quiz Round Complete!' });
   broadcastLeaderboard();
 }
@@ -164,6 +165,7 @@ function revealGuessAnswer() {
 }
 
 function endGuessRound() {
+  game.phase = 'guess-done';
   io.emit('round:end', { round: 'guess', message: '🕵️ Guess the Player Complete!' });
   broadcastLeaderboard();
 }
@@ -258,9 +260,9 @@ io.on('connection', socket => {
     console.log(`  player joined: ${playerName} (total: ${Object.keys(game.players).length})`);
   }));
 
-  socket.on('host:start-quiz',    safe(() => { if (socket.id === game.hostId) startQuiz(); }));
-  socket.on('host:start-guess',   safe(() => { if (socket.id === game.hostId) startGuessPlayer(); }));
-  socket.on('host:start-penalty', safe(() => { if (socket.id === game.hostId) startPenaltyRound(); }));
+  socket.on('host:start-quiz',    safe(() => { if (socket.id === game.hostId && game.phase === 'lobby')      startQuiz(); }));
+  socket.on('host:start-guess',   safe(() => { if (socket.id === game.hostId && game.phase === 'quiz-done')  startGuessPlayer(); }));
+  socket.on('host:start-penalty', safe(() => { if (socket.id === game.hostId && game.phase === 'guess-done') startPenaltyRound(); }));
 
   socket.on('host:skip', safe(() => {
     if (socket.id !== game.hostId) return;
@@ -271,6 +273,10 @@ io.on('connection', socket => {
 
   socket.on('host:reset', safe(() => {
     if (socket.id !== game.hostId) return;
+    if (game.phase !== 'winner' && game.phase !== 'lobby') {
+      socket.emit('host:error', { message: 'Cannot reset while a game is in progress.' });
+      return;
+    }
     const hostId = socket.id;
     game = createFreshGame();
     game.hostId = hostId;
