@@ -119,17 +119,26 @@ export default function QuizScreen({ socket, quizData, quizReveal }) {
         })}
       </div>
 
-      {/* ── FEEDBACK ── */}
-      <div className="px-4 pb-6 pt-3 flex-shrink-0">
+      {/* ── FEEDBACK + EXPLANATION ── */}
+      <div className="px-4 pb-6 pt-3 flex-shrink-0 space-y-2">
         {feedback && (
-          <div className={`text-center py-4 rounded-2xl font-black text-2xl animate-bounce-in ${
+          <div className={`text-center py-3 rounded-2xl font-black text-2xl animate-bounce-in ${
             feedback === 'correct'
               ? 'bg-green-500/30 border border-green-400/40 text-green-300'
               : 'bg-red-500/30 border border-red-400/40 text-red-300'
           }`}>
-            {feedback === 'correct' ? '🎉 Correct! Points earned!' : '❌ Incorrect!'}
+            {feedback === 'correct' ? '🎉 Correct!' : '❌ Incorrect!'}
           </div>
         )}
+
+        {/* Explanation shown to everyone after reveal */}
+        {quizReveal?.explanation && (
+          <div className="bg-blue-900/40 border border-blue-400/30 rounded-2xl px-4 py-3 animate-fade-in">
+            <p className="text-blue-300 text-xs font-bold uppercase tracking-wider mb-1">💡 Did you know?</p>
+            <p className="text-white/80 text-sm leading-snug">{quizReveal.explanation}</p>
+          </div>
+        )}
+
         {selected !== null && !feedback && !quizReveal && (
           <div className="text-center py-4 rounded-2xl bg-white/10 border border-white/20 text-white/60 font-semibold animate-fade-in">
             ✅ Locked in — waiting for reveal…

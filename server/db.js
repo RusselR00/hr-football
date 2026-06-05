@@ -27,15 +27,16 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS quiz_questions (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    question TEXT NOT NULL,
-    opt_a    TEXT NOT NULL,
-    opt_b    TEXT NOT NULL,
-    opt_c    TEXT NOT NULL,
-    opt_d    TEXT NOT NULL,
-    answer   INTEGER NOT NULL DEFAULT 0,
-    active   INTEGER NOT NULL DEFAULT 1,
-    sort_order INTEGER NOT NULL DEFAULT 0
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    question    TEXT NOT NULL,
+    opt_a       TEXT NOT NULL,
+    opt_b       TEXT NOT NULL,
+    opt_c       TEXT NOT NULL,
+    opt_d       TEXT NOT NULL,
+    answer      INTEGER NOT NULL DEFAULT 0,
+    explanation TEXT NOT NULL DEFAULT '',
+    active      INTEGER NOT NULL DEFAULT 1,
+    sort_order  INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS guess_players (
@@ -52,22 +53,38 @@ db.exec(`
 
 // ─── Seed defaults if empty ────────────────────────────────────────────────
 
+// Add explanation column if missing (safe migration)
+try { db.exec(`ALTER TABLE quiz_questions ADD COLUMN explanation TEXT NOT NULL DEFAULT ''`); } catch(_) {}
+
 const qCount = db.prepare('SELECT COUNT(*) as c FROM quiz_questions').get().c;
 if (qCount === 0) {
-  const insertQ = db.prepare(`INSERT INTO quiz_questions (question,opt_a,opt_b,opt_c,opt_d,answer,active,sort_order) VALUES (?,?,?,?,?,?,1,?)`);
+  const insertQ = db.prepare(`INSERT INTO quiz_questions (question,opt_a,opt_b,opt_c,opt_d,answer,explanation,active,sort_order) VALUES (?,?,?,?,?,?,?,1,?)`);
+  // [question, A, B, C, D, correct_index(0-based), explanation, sort_order]
   [
-    ['Which country won the 2022 FIFA World Cup?',          'France','Argentina','Brazil','Germany',           1, 1],
-    ['Who has won the most Ballon d\'Or awards?',           'Cristiano Ronaldo','Zinedine Zidane','Lionel Messi','Ronaldo Nazário', 2, 2],
-    ['Which club is known as "The Reds"?',                  'Manchester United','Arsenal','Bayern Munich','Liverpool', 3, 3],
-    ['Who scored the infamous "Hand of God" goal?',         'Pelé','Diego Maradona','Ronaldo','Zidane',        1, 4],
-    ['How many players are on the field per team?',         '9','10','11','12',                                2, 5],
-    ['Which country has won the most FIFA World Cups?',     'Germany','Italy','Argentina','Brazil',            3, 6],
-    ['Who is the all-time top scorer in World Cup history?','Ronaldo','Pelé','Miroslav Klose','Just Fontaine', 2, 7],
-    ['Which club has won the most Champions League titles?','Barcelona','AC Milan','Real Madrid','Bayern Munich',2,8],
-    ['In which year was the first FIFA World Cup held?',    '1926','1930','1934','1938',                       1, 9],
-    ['Which player is nicknamed "The Egyptian King"?',      'Riyad Mahrez','Mo Salah','Sadio Mané','Hakim Ziyech',1,10],
-    ['What is the duration of a standard football match?',  '80 minutes','90 minutes','100 minutes','120 minutes',1,11],
-    ['Which country hosted the 2018 FIFA World Cup?',       'Brazil','Germany','Russia','Qatar',               2, 12],
+    ['Which country won the 2022 FIFA World Cup?','France','Argentina','Brazil','Germany',1,
+     'Argentina beat France on penalties in the final in Qatar. It was Messi\'s first World Cup title.',1],
+    ['Who has won the most Ballon d\'Or awards?','Cristiano Ronaldo','Zinedine Zidane','Lionel Messi','Ronaldo Nazário',2,
+     'Lionel Messi has won 8 Ballon d\'Or awards — more than any other player in history.',2],
+    ['Which club is known as "The Reds"?','Manchester United','Arsenal','Bayern Munich','Liverpool',3,
+     'Liverpool FC are nicknamed The Reds due to their iconic all-red home kit, adopted in the 1960s.',3],
+    ['Who scored the infamous "Hand of God" goal?','Pelé','Diego Maradona','Ronaldo','Zidane',1,
+     'Maradona punched the ball into the net against England in the 1986 World Cup quarter-final, calling it "the hand of God".',4],
+    ['How many players are on the field per team?','9','10','11','12',2,
+     'Each team fields 11 players — 10 outfield players and 1 goalkeeper.',5],
+    ['Which country has won the most FIFA World Cups?','Germany','Italy','Argentina','Brazil',3,
+     'Brazil has won 5 World Cups: 1958, 1962, 1970, 1994 and 2002 — the most of any nation.',6],
+    ['Who is the all-time top scorer in World Cup history?','Ronaldo','Pelé','Miroslav Klose','Just Fontaine',2,
+     'Miroslav Klose scored 16 goals for Germany across 4 World Cups (2002–2014).',7],
+    ['Which club has won the most Champions League titles?','Barcelona','AC Milan','Real Madrid','Bayern Munich',2,
+     'Real Madrid have lifted the Champions League / European Cup a record 15 times.',8],
+    ['In which year was the first FIFA World Cup held?','1926','1930','1934','1938',1,
+     'The first World Cup was held in Uruguay in 1930. Uruguay won it, beating Argentina 4-2 in the final.',9],
+    ['Which player is nicknamed "The Egyptian King"?','Riyad Mahrez','Mo Salah','Sadio Mané','Hakim Ziyech',1,
+     'Mohamed Salah earned the nickname The Egyptian King after becoming Liverpool\'s all-time top scorer.',10],
+    ['What is the duration of a standard football match?','80 minutes','90 minutes','100 minutes','120 minutes',1,
+     'A standard match is 90 minutes: two 45-minute halves. 120 minutes (extra time) only applies in knockout rounds.',11],
+    ['Which country hosted the 2018 FIFA World Cup?','Brazil','Germany','Russia','Qatar',2,
+     'Russia hosted the 2018 World Cup. France won the tournament, beating Croatia 4-2 in the final.',12],
   ].forEach(r => insertQ.run(...r));
 }
 
@@ -116,8 +133,8 @@ function getAllQuestions() {
 }
 function addQuestion(q) {
   const maxOrder = db.prepare(`SELECT MAX(sort_order) as m FROM quiz_questions`).get().m || 0;
-  return db.prepare(`INSERT INTO quiz_questions (question,opt_a,opt_b,opt_c,opt_d,answer,active,sort_order) VALUES (?,?,?,?,?,?,?,?)`)
-    .run(q.question, q.opt_a, q.opt_b, q.opt_c, q.opt_d, q.answer, 1, maxOrder + 1).lastInsertRowid;
+  return db.prepare(`INSERT INTO quiz_questions (question,opt_a,opt_b,opt_c,opt_d,answer,explanation,active,sort_order) VALUES (?,?,?,?,?,?,?,1,?)`)
+    .run(q.question, q.opt_a, q.opt_b, q.opt_c, q.opt_d, q.answer, q.explanation||'', maxOrder + 1).lastInsertRowid;
 }
 function updateQuestion(id, fields) {
   const cols = Object.keys(fields).map(k => `${k}=?`).join(',');

@@ -34,6 +34,7 @@ function loadGameData() {
     q: r.question,
     options: [r.opt_a, r.opt_b, r.opt_c, r.opt_d],
     answer: r.answer,
+    explanation: r.explanation || '',
   }));
   GUESS_PLAYERS = db.getActivePlayers().map(r => ({
     id: r.id,
@@ -153,7 +154,7 @@ function revealQuizAnswer() {
       correct.push(sid);
     }
   });
-  io.emit('quiz:reveal', { correctIndex: q.answer, correct });
+  io.emit('quiz:reveal', { correctIndex: q.answer, correct, explanation: q.explanation || '' });
   broadcastLeaderboard();
   setTimeout(() => { game.quizIndex++; sendQuizQuestion(); }, 3000);
 }
