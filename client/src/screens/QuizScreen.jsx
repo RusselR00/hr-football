@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 const OPTION_STYLES = [
   { bg: 'from-red-500 to-red-700',    active: 'ring-red-300' },
@@ -9,9 +9,11 @@ const OPTION_STYLES = [
 const LABELS = ['A','B','C','D'];
 
 export default function QuizScreen({ socket, quizData, quizReveal }) {
-  const [selected, setSelected] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(20);
-  const [feedback, setFeedback] = useState(null);
+  const [selected, setSelected]       = useState(null);
+  const [timeLeft, setTimeLeft]       = useState(20);
+  const [feedback, setFeedback]       = useState(null);
+  const [explTimer, setExplTimer]     = useState(0);
+  const explRef = useRef(null);
 
   useEffect(() => {
     setSelected(null);
@@ -26,8 +28,16 @@ export default function QuizScreen({ socket, quizData, quizReveal }) {
   }, [quizData?.index]);
 
   useEffect(() => {
-    if (!quizReveal || selected === null) return;
-    setFeedback(selected === quizReveal.correctIndex ? 'correct' : 'wrong');
+    if (!quizReveal) return;
+    if (selected !== null) setFeedback(selected === quizReveal.correctIndex ? 'correct' : 'wrong');
+    if (quizReveal.explanation) {
+      setExplTimer(10);
+      clearInterval(explRef.current);
+      explRef.current = setInterval(() => {
+        setExplTimer(t => { if (t <= 1) { clearInterval(explRef.current); return 0; } return t - 1; });
+      }, 1000);
+    }
+    return () => clearInterval(explRef.current);
   }, [quizReveal]);
 
   const answer = (idx) => {
@@ -134,7 +144,12 @@ export default function QuizScreen({ socket, quizData, quizReveal }) {
         {/* Explanation shown to everyone after reveal */}
         {quizReveal?.explanation && (
           <div className="bg-blue-900/40 border border-blue-400/30 rounded-2xl px-4 py-3 animate-fade-in">
-            <p className="text-blue-300 text-xs font-bold uppercase tracking-wider mb-1">💡 Did you know?</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-blue-300 text-xs font-bold uppercase tracking-wider">💡 Did you know?</p>
+              {explTimer > 0 && (
+                <span className="text-blue-400/60 text-xs font-bold tabular-nums">{explTimer}s</span>
+              )}
+            </div>
             <p className="text-white/80 text-sm leading-snug">{quizReveal.explanation}</p>
           </div>
         )}

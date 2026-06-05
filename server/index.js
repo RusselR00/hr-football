@@ -156,7 +156,8 @@ function revealQuizAnswer() {
   });
   io.emit('quiz:reveal', { correctIndex: q.answer, correct, explanation: q.explanation || '' });
   broadcastLeaderboard();
-  setTimeout(() => { game.quizIndex++; sendQuizQuestion(); }, 3000);
+  const delay = q.explanation ? 10000 : 3000;
+  setTimeout(() => { game.quizIndex++; sendQuizQuestion(); }, delay);
 }
 
 function endQuizRound() {
