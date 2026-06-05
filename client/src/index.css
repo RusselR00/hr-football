@@ -2,59 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body, #root {
+  height: 100%;
+  height: -webkit-fill-available;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 
 body {
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   margin: 0;
   padding: 0;
-  min-height: 100vh;
   background: #0a0f1e;
+  /* Safe area for iOS notch */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Full screen mobile-safe container */
+.screen {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Touch target minimum */
+button { min-height: 44px; }
 
 @layer utilities {
   .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
   .text-shadow-lg { text-shadow: 0 4px 12px rgba(0,0,0,0.7); }
+  /* Dynamic viewport height — works on mobile Safari */
+  .h-dvh { height: 100dvh; height: -webkit-fill-available; }
+  .min-h-dvh { min-height: 100dvh; min-height: -webkit-fill-available; }
 }
 
-/* Football pitch lines */
-.pitch-bg {
-  background-color: #1a5c2a;
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 60px,
-    rgba(255,255,255,0.04) 60px,
-    rgba(255,255,255,0.04) 62px
-  );
-}
-
-/* Animated gradient background */
 .game-bg {
-  background: linear-gradient(135deg, #0D47A1 0%, #0a0f1e 50%, #1a0a0a 100%);
-  min-height: 100vh;
+  background: linear-gradient(160deg, #0D47A1 0%, #0a0f1e 55%, #12040a 100%);
 }
 
 /* Timer ring */
-.timer-ring {
-  transform: rotate(-90deg);
-  transform-origin: 50% 50%;
-}
+.timer-ring { transform: rotate(-90deg); transform-origin: 50% 50%; }
 
-/* Button press effect */
-.btn-press:active { transform: scale(0.95); }
+/* Button press */
+.btn-press { transition: transform 0.1s, box-shadow 0.1s; }
+.btn-press:active { transform: scale(0.93) !important; }
 
-/* Answer option hover */
-.option-btn {
-  transition: all 0.15s ease;
-}
-.option-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-}
+/* Option hover / press */
+.option-btn { transition: all 0.12s ease; }
+.option-btn:active { transform: scale(0.96); }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+/* Ball spin in penalty */
+@keyframes ballSpin {
+  from { transform: translate(-50%,-50%) rotate(0deg); }
+  to   { transform: translate(-50%,-50%) rotate(360deg); }
+}
+@keyframes netShake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-5px); }
+  40%      { transform: translateX(5px); }
+  60%      { transform: translateX(-3px); }
+  80%      { transform: translateX(3px); }
+}
+.net-shake { animation: netShake 0.4s ease; }

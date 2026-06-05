@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 
-const AVATARS = ['🦈', '🐟', '🐠', '🐡', '🦑', '🦞', '🐙', '🦀'];
+const AVATARS = ['🦈','🐟','🐠','🐡','🦑','🦞','🐙','🦀'];
 
 export default function JoinScreen({ socket }) {
-  const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('🦈');
-  const [error, setError] = useState('');
+  const [name, setName]       = useState('');
+  const [avatar, setAvatar]   = useState('🦈');
+  const [error, setError]     = useState('');
   const [joining, setJoining] = useState(false);
 
   const join = () => {
-    if (!name.trim()) { setError('Enter your name!'); return; }
+    if (!name.trim()) { setError('Please enter your name!'); return; }
     setJoining(true);
     socket.emit('player:join', { name: `${avatar} ${name.trim()}` });
     socket.once('join:error', ({ message }) => {
@@ -19,31 +19,31 @@ export default function JoinScreen({ socket }) {
   };
 
   return (
-    <div className="game-bg min-h-screen flex flex-col items-center justify-center px-4">
-      {/* Logo & Header */}
-      <div className="text-center mb-8 animate-fade-in">
-        <div className="text-6xl mb-3">⚽</div>
-        <h1 className="text-3xl font-black text-white tracking-tight">
+    <div className="screen game-bg flex flex-col items-center justify-center px-5">
+      {/* Logo */}
+      <div className="text-center mb-7 animate-fade-in">
+        <div className="text-7xl mb-3 animate-bounce-in">⚽</div>
+        <h1 className="text-3xl font-black text-white tracking-tight leading-tight">
           Deep Seafood
         </h1>
-        <p className="text-brand-blue-light font-semibold text-lg">Football Championship 2024</p>
+        <p className="text-blue-400 font-bold text-base mt-1">Football Championship 2024</p>
       </div>
 
-      {/* Join Card */}
-      <div className="w-full max-w-sm bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 shadow-2xl animate-slide-up">
-        <h2 className="text-xl font-bold text-white mb-5 text-center">Join the Game</h2>
+      {/* Card */}
+      <div className="w-full max-w-sm bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 shadow-2xl animate-slide-up">
+        <h2 className="text-xl font-black text-white mb-5 text-center">Join the Game</h2>
 
-        {/* Avatar Picker */}
-        <p className="text-white/60 text-sm mb-2 font-medium">Pick your avatar</p>
+        {/* Avatar picker */}
+        <p className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-3">Pick your avatar</p>
         <div className="grid grid-cols-4 gap-2 mb-5">
           {AVATARS.map(a => (
             <button
               key={a}
               onClick={() => setAvatar(a)}
-              className={`text-2xl py-2 rounded-xl transition-all btn-press ${
+              className={`text-3xl py-3 rounded-2xl transition-all btn-press border-2 ${
                 avatar === a
-                  ? 'bg-brand-blue scale-110 shadow-lg shadow-blue-500/40'
-                  : 'bg-white/10 hover:bg-white/20'
+                  ? 'border-blue-400 bg-blue-600/40 shadow-lg shadow-blue-500/40 scale-110'
+                  : 'border-transparent bg-white/10 hover:bg-white/20'
               }`}
             >
               {a}
@@ -51,29 +51,33 @@ export default function JoinScreen({ socket }) {
           ))}
         </div>
 
-        {/* Name Input */}
+        {/* Name */}
         <input
           type="text"
-          maxLength={20}
-          placeholder="Your name..."
+          maxLength={18}
+          inputMode="text"
+          autoComplete="given-name"
+          placeholder="Your name…"
           value={name}
           onChange={e => { setName(e.target.value); setError(''); }}
           onKeyDown={e => e.key === 'Enter' && join()}
-          className="w-full bg-white/10 border border-white/30 text-white placeholder-white/40 rounded-xl px-4 py-3 text-lg font-semibold focus:outline-none focus:border-brand-blue-light focus:bg-white/20 transition-all mb-4"
+          className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-white/35 rounded-2xl px-4 py-4 text-lg font-semibold focus:outline-none focus:border-blue-400 focus:bg-white/15 transition-all mb-4"
         />
 
-        {error && <p className="text-brand-red-light text-sm mb-3 text-center font-medium">{error}</p>}
+        {error && (
+          <p className="text-red-400 text-sm mb-3 text-center font-semibold animate-fade-in">{error}</p>
+        )}
 
         <button
           onClick={join}
           disabled={joining}
-          className="w-full bg-gradient-to-r from-brand-blue to-brand-blue-light text-white font-black text-xl py-4 rounded-xl shadow-lg shadow-blue-900/50 hover:shadow-blue-700/60 transition-all btn-press disabled:opacity-50"
+          className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-black text-xl py-4 rounded-2xl shadow-xl shadow-blue-900/60 btn-press disabled:opacity-50 active:from-blue-700"
         >
-          {joining ? '⏳ Joining...' : '🚀 Join Game'}
+          {joining ? '⏳ Joining…' : '🚀 Join Game'}
         </button>
       </div>
 
-      <p className="text-white/30 text-xs mt-6">The Deep Seafood Company · HR Event 2024</p>
+      <p className="text-white/25 text-xs mt-6 text-center">The Deep Seafood Company · HR Event 2024</p>
     </div>
   );
 }
