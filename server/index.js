@@ -1,9 +1,20 @@
+// ─── Crash guards (MUST be first) ────────────────────────────────────────────
+process.on('uncaughtException',      err => console.error('UNCAUGHT EXCEPTION', err));
+process.on('unhandledRejection',     err => console.error('UNHANDLED REJECTION', err));
+process.on('SIGTERM', () => { console.log('SIGTERM received, staying alive'); });
+
 const express = require('express');
 const http    = require('http');
 const { Server } = require('socket.io');
 const cors   = require('cors');
 const QRCode = require('qrcode');
 const db     = require('./db');
+const fs     = require('fs');
+const path   = require('path');
+
+// Ensure logs dir exists
+const logsDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir);
 
 const app    = express();
 app.use(cors());
@@ -260,20 +271,27 @@ function endPenaltyRound() {
 
 // ─── Sockets ──────────────────────────────────────────────────────────────────
 
+// Wrap every handler so a single bad message can never crash the process
+function safe(fn) {
+  return (...args) => {
+    try { fn(...args); }
+    catch (err) { console.error('Socket handler error (non-fatal):', err); }
+  };
+}
+
 io.on('connection', socket => {
   console.log('+ connected:', socket.id);
 
-  socket.on('host:join', () => {
+  socket.on('host:join', safe(() => {
     game.hostId = socket.id;
     socket.join('host');
     socket.emit('host:state', { roomCode: game.roomCode, players: game.players, phase: game.phase });
-  });
+  }));
 
-  socket.on('player:join', ({ name }) => {
+  socket.on('player:join', safe(({ name } = {}) => {
     if (!name?.trim()) { socket.emit('join:error', { message: 'Name required' }); return; }
     if (game.phase !== 'lobby') { socket.emit('join:error', { message: 'Game already started!' }); return; }
 
-    // Start DB session on first player
     if (!game.sessionId) game.sessionId = db.startSession();
 
     const playerName = name.trim().substring(0, 22);
@@ -284,43 +302,43 @@ io.on('connection', socket => {
     socket.emit('join:success', { player: game.players[socket.id], roomCode: game.roomCode });
     io.to('host').emit('host:player-joined', { players: game.players });
     broadcastLeaderboard();
-    console.log(`  player joined: ${playerName}`);
-  });
+    console.log(`  player joined: ${playerName} (total: ${Object.keys(game.players).length})`);
+  }));
 
-  socket.on('host:start-quiz',    () => { if (socket.id === game.hostId) startQuiz(); });
-  socket.on('host:start-guess',   () => { if (socket.id === game.hostId) startGuessPlayer(); });
-  socket.on('host:start-predict', () => { if (socket.id === game.hostId) startPredictRound(); });
-  socket.on('host:start-penalty', () => { if (socket.id === game.hostId) startPenaltyRound(); });
+  socket.on('host:start-quiz',    safe(() => { if (socket.id === game.hostId) startQuiz(); }));
+  socket.on('host:start-guess',   safe(() => { if (socket.id === game.hostId) startGuessPlayer(); }));
+  socket.on('host:start-predict', safe(() => { if (socket.id === game.hostId) startPredictRound(); }));
+  socket.on('host:start-penalty', safe(() => { if (socket.id === game.hostId) startPenaltyRound(); }));
 
-  socket.on('host:skip', () => {
+  socket.on('host:skip', safe(() => {
     if (socket.id !== game.hostId) return;
     if (game.phase === 'quiz')         { clearTimeout(game.quizTimer);    revealQuizAnswer();    }
     if (game.phase === 'guess-player') { clearTimeout(game.guessTimer);   revealGuessAnswer();   }
     if (game.phase === 'predict')      { clearTimeout(game.predictTimer); revealPredictResult(); }
     if (game.phase === 'penalty')      { clearTimeout(game.penaltyTimer); resolvePenaltyKick();  }
-  });
+  }));
 
-  socket.on('host:reset', () => {
+  socket.on('host:reset', safe(() => {
     if (socket.id !== game.hostId) return;
     const hostId = socket.id;
     game = createFreshGame();
     game.hostId = hostId;
     io.emit('game:reset');
-    console.log('Game reset');
-  });
+    console.log('Game reset by host');
+  }));
 
-  socket.on('quiz:answer', ({ optionIndex }) => {
+  socket.on('quiz:answer', safe(({ optionIndex } = {}) => {
     if (game.phase !== 'quiz' || game.quizAnswers[socket.id] || !game.players[socket.id]) return;
     game.quizAnswers[socket.id] = { optionIndex, timeMs: Date.now() - game.questionStart };
     socket.emit('quiz:answered', { optionIndex });
-  });
+  }));
 
-  socket.on('guess:answer', ({ answer }) => {
+  socket.on('guess:answer', safe(({ answer } = {}) => {
     if (game.phase !== 'guess-player' || game.guessAnswers[socket.id] || !game.players[socket.id]) return;
     const target = GUESS_PLAYERS[game.guessIndex];
-    const norm = (s) => s.toLowerCase().trim();
-    const correct = norm(answer).includes(norm(target.answer.split(' ')[1] || target.answer)) ||
-                    norm(target.answer).includes(norm(answer));
+    const norm = s => s.toLowerCase().trim();
+    const correct = norm(answer || '').includes(norm(target.answer.split(' ')[1] || target.answer)) ||
+                    norm(target.answer).includes(norm(answer || ''));
     if (correct) {
       const maxPts = Math.max(200, 1000 - game.guessClueIndex * 200);
       game.players[socket.id].score += maxPts;
@@ -333,28 +351,30 @@ io.on('connection', socket => {
     } else {
       socket.emit('guess:wrong');
     }
-  });
+  }));
 
-  socket.on('predict:submit', ({ home, away }) => {
+  socket.on('predict:submit', safe(({ home, away } = {}) => {
     if (game.phase !== 'predict' || game.predictAnswers[socket.id] || !game.players[socket.id]) return;
     game.predictAnswers[socket.id] = { home: Math.max(0, parseInt(home) || 0), away: Math.max(0, parseInt(away) || 0) };
     socket.emit('predict:submitted');
-  });
+  }));
 
-  socket.on('penalty:shoot', ({ direction }) => {
+  socket.on('penalty:shoot', safe(({ direction } = {}) => {
     if (game.phase !== 'penalty' || !game.players[socket.id]) return;
     if (!game.penaltyKickAnswers) game.penaltyKickAnswers = {};
     game.penaltyKickAnswers[socket.id] = direction;
-  });
+  }));
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', safe(() => {
     console.log('- disconnected:', socket.id);
     if (game.players[socket.id]) {
       delete game.players[socket.id];
       io.to('host').emit('host:player-joined', { players: game.players });
       broadcastLeaderboard();
     }
-  });
+  }));
+
+  socket.on('error', err => console.error('Socket error (non-fatal):', err));
 });
 
 // ─── REST ─────────────────────────────────────────────────────────────────────
