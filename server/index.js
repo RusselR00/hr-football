@@ -62,7 +62,7 @@ function createFreshGame() {
     sessionId: null,
     quizIndex: 0, quizTimer: null, quizAnswers: {}, questionStart: 0,
     guessIndex: 0, guessClueIndex: 0, guessTimer: null, guessAnswers: {},
-    penaltyRound: 0, penaltyTimer: null, penaltyKickAnswers: {}, penaltyShots: {},
+    penaltyShots: {}, penaltyDone: new Set(), penaltyTimer: null,
   };
 }
 
@@ -170,58 +170,41 @@ function endGuessRound() {
   broadcastLeaderboard();
 }
 
-// ─── Penalty ──────────────────────────────────────────────────────────────────
+// ─── Penalty (standalone per player) ─────────────────────────────────────────
+// Each player plays their own 5 kicks independently at their own pace.
+// Server resolves each kick immediately and replies only to that player.
+
+const TOTAL_KICKS = 5;
 
 function startPenaltyRound() {
   game.phase = 'penalty';
-  game.penaltyRound = 0;
-  game.penaltyShots = {};
+  game.penaltyShots = {};      // sid -> [{ dir, gkDir, goal }]
+  game.penaltyDone  = new Set(); // sids who finished all kicks
   Object.keys(game.players).forEach(sid => {
     game.penaltyShots[sid] = [];
     game.players[sid].penaltyGoals = 0;
   });
-  sendPenaltyKick();
+  io.emit('penalty:start', { totalKicks: TOTAL_KICKS });
 }
 
-function sendPenaltyKick() {
-  if (game.penaltyRound >= 5) { endPenaltyRound(); return; }
-  game.penaltyKickAnswers = {};
-  io.emit('penalty:kick', { round: game.penaltyRound + 1, total: 5, timeLimit: 8 });
-  clearTimeout(game.penaltyTimer);
-  game.penaltyTimer = setTimeout(resolvePenaltyKick, 8000);
-}
-
-function resolvePenaltyKick() {
-  clearTimeout(game.penaltyTimer);
-  const results = {};
-  Object.keys(game.players).forEach(sid => {
-    const dir = game.penaltyKickAnswers[sid] ?? Math.floor(Math.random() * 3);
-    const gkDir = Math.floor(Math.random() * 3);
-    const goal = dir !== gkDir;
-    game.penaltyShots[sid].push({ dir, gkDir, goal });
-    if (goal) game.players[sid].penaltyGoals = (game.players[sid].penaltyGoals || 0) + 1;
-    results[sid] = { dir, goalkeeperDir: gkDir, goal };
+function checkAllDone() {
+  const total = Object.keys(game.players).length;
+  if (total === 0) return;
+  io.to('host').emit('host:penalty-progress', {
+    done: game.penaltyDone.size,
+    total,
   });
-  if (game.penaltyRound === 4) {
-    Object.entries(game.players).forEach(([sid]) => {
-      const pts = (game.players[sid].penaltyGoals || 0) * 200;
-      game.players[sid].score += pts;
-      game.players[sid].roundScores.penalty = pts;
-    });
-  }
-  io.emit('penalty:result', { results, round: game.penaltyRound + 1 });
-  broadcastLeaderboard();
-  game.penaltyRound++;
-  setTimeout(sendPenaltyKick, 3000);
+  if (game.penaltyDone.size >= total) endPenaltyRound();
 }
 
 function endPenaltyRound() {
+  clearTimeout(game.penaltyTimer);
+  persistScores();
   const lb = getLeaderboard();
   const winner = lb[0];
   if (game.sessionId) db.endSession(game.sessionId, winner?.name, winner?.score);
   io.emit('game:winner', { leaderboard: lb, winner });
   game.phase = 'winner';
-  persistScores();
 }
 
 // ─── Sockets ──────────────────────────────────────────────────────────────────
@@ -266,9 +249,8 @@ io.on('connection', socket => {
 
   socket.on('host:skip', safe(() => {
     if (socket.id !== game.hostId) return;
-    if (game.phase === 'quiz')         { clearTimeout(game.quizTimer);  revealQuizAnswer();   }
-    if (game.phase === 'guess-player') { clearTimeout(game.guessTimer); revealGuessAnswer();   }
-    if (game.phase === 'penalty')      { clearTimeout(game.penaltyTimer); resolvePenaltyKick(); }
+    if (game.phase === 'quiz')         { clearTimeout(game.quizTimer);  revealQuizAnswer();  }
+    if (game.phase === 'guess-player') { clearTimeout(game.guessTimer); revealGuessAnswer();  }
   }));
 
   // Only allowed from winner/lobby (normal end-of-game flow)
@@ -287,7 +269,6 @@ io.on('connection', socket => {
     if (socket.id !== game.hostId) return;
     clearTimeout(game.quizTimer);
     clearTimeout(game.guessTimer);
-    clearTimeout(game.penaltyTimer);
     const hostId = socket.id;
     game = createFreshGame();
     game.hostId = hostId;
@@ -300,7 +281,6 @@ io.on('connection', socket => {
     if (socket.id !== game.hostId) return;
     clearTimeout(game.quizTimer);
     clearTimeout(game.guessTimer);
-    clearTimeout(game.penaltyTimer);
     persistScores();
     const lb = getLeaderboard();
     const winner = lb[0];
@@ -338,8 +318,30 @@ io.on('connection', socket => {
 
   socket.on('penalty:shoot', safe(({ direction } = {}) => {
     if (game.phase !== 'penalty' || !game.players[socket.id]) return;
-    if (!game.penaltyKickAnswers) game.penaltyKickAnswers = {};
-    game.penaltyKickAnswers[socket.id] = direction;
+    const shots = game.penaltyShots[socket.id];
+    if (!shots || shots.length >= TOTAL_KICKS) return; // already done
+
+    const dir   = [0, 1, 2].includes(direction) ? direction : Math.floor(Math.random() * 3);
+    const gkDir = Math.floor(Math.random() * 3);
+    const goal  = dir !== gkDir;
+
+    shots.push({ dir, gkDir, goal });
+    if (goal) game.players[socket.id].penaltyGoals++;
+
+    const kickNum = shots.length;
+    socket.emit('penalty:kick-result', { dir, goalkeeperDir: gkDir, goal, kickNum, totalKicks: TOTAL_KICKS });
+
+    if (kickNum >= TOTAL_KICKS) {
+      // All kicks done — score this player
+      const goals = game.players[socket.id].penaltyGoals;
+      const pts   = goals * 200;
+      game.players[socket.id].score += pts;
+      game.players[socket.id].roundScores.penalty = pts;
+      socket.emit('penalty:done', { goals, pts, totalKicks: TOTAL_KICKS });
+      game.penaltyDone.add(socket.id);
+      broadcastLeaderboard();
+      checkAllDone();
+    }
   }));
 
   socket.on('disconnect', safe(() => {

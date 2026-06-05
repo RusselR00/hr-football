@@ -29,8 +29,6 @@ export default function App() {
   const [quizData, setQuizData]       = useState(null);
   const [quizReveal, setQuizReveal]   = useState(null);
   const [guessData, setGuessData]     = useState(null);
-  const [penaltyData, setPenaltyData] = useState(null);
-  const [penaltyResult, setPenaltyResult] = useState(null);
   const [winner, setWinner]           = useState(null);
   const [roundEnd, setRoundEnd]       = useState(null);
   const [connStatus, setConnStatus]   = useState('connecting');
@@ -53,8 +51,7 @@ export default function App() {
     socket.on('guess:clue',   data => { setGuessData(data); setScreen('guess'); });
     socket.on('guess:reveal', data => setGuessData(prev => ({ ...prev, revealed: data.answer })));
 
-    socket.on('penalty:kick',   data => { setPenaltyResult(null); setPenaltyData(data); setScreen('penalty'); });
-    socket.on('penalty:result', data => setPenaltyResult(data));
+    socket.on('penalty:start', () => { setScreen('penalty'); });
 
     socket.on('round:end',   data => { setRoundEnd(data); setScreen('leaderboard'); });
     socket.on('game:winner', data => { setWinner(data); setScreen('winner'); });
@@ -73,7 +70,7 @@ export default function App() {
       case 'lobby':       return <LobbyScreen {...props} />;
       case 'quiz':        return <QuizScreen {...props} quizData={quizData} quizReveal={quizReveal} />;
       case 'guess':       return <GuessPlayerScreen {...props} guessData={guessData} />;
-      case 'penalty':     return <PenaltyScreen {...props} penaltyData={penaltyData} penaltyResult={penaltyResult} />;
+      case 'penalty':     return <PenaltyScreen socket={socket} player={player} />;
       case 'leaderboard': return <LeaderboardScreen {...props} roundEnd={roundEnd} />;
       case 'winner':      return <WinnerScreen {...props} winner={winner} />;
       default:            return <JoinScreen socket={socket} />;
