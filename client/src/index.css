@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: #0a0f1e;
+}
+
+@layer utilities {
+  .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+  .text-shadow-lg { text-shadow: 0 4px 12px rgba(0,0,0,0.7); }
+}
+
+/* Football pitch lines */
+.pitch-bg {
+  background-color: #1a5c2a;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 60px,
+    rgba(255,255,255,0.04) 60px,
+    rgba(255,255,255,0.04) 62px
+  );
+}
+
+/* Animated gradient background */
+.game-bg {
+  background: linear-gradient(135deg, #0D47A1 0%, #0a0f1e 50%, #1a0a0a 100%);
+  min-height: 100vh;
+}
+
+/* Timer ring */
+.timer-ring {
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* Button press effect */
+.btn-press:active { transform: scale(0.95); }
+
+/* Answer option hover */
+.option-btn {
+  transition: all 0.15s ease;
+}
+.option-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
