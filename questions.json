@@ -1,0 +1,202 @@
+[
+  {
+    "q": "Which country holds the record for winning a FIFA World Cup with the fewest goals scored by a champion?",
+    "opts": [
+      "Italy",
+      "Spain",
+      "Germany",
+      "Argentina"
+    ],
+    "correct": 1
+  },
+  {
+    "q": "Who is the only player to win the FIFA World Cup three times?",
+    "opts": [
+      "Diego Maradona",
+      "Pelé",
+      "Franz Beckenbauer",
+      "Cafu"
+    ],
+    "correct": 1
+  },
+  {
+    "q": "Which player scored the fastest goal in World Cup history, in around 11 seconds?",
+    "opts": [
+      "Hakan Şükür",
+      "Clint Dempsey",
+      "Bryan Robson",
+      "Vaclav Masek"
+    ],
+    "correct": 0
+  },
+  {
+    "q": "Which country scored the most team goals in a single World Cup tournament?",
+    "opts": [
+      "Brazil",
+      "Hungary",
+      "Germany",
+      "France"
+    ],
+    "correct": 1
+  },
+  {
+    "q": "Who is the oldest goalscorer in World Cup history?",
+    "opts": [
+      "Roger Milla",
+      "Cristiano Ronaldo",
+      "Pepe",
+      "Miroslav Klose"
+    ],
+    "correct": 0
+  },
+  {
+    "q": "Which player has scored the most goals in men’s World Cup history?",
+    "opts": [
+      "Ronaldo Nazário",
+      "Lionel Messi",
+      "Miroslav Klose",
+      "Gerd Müller"
+    ],
+    "correct": 2
+  },
+  {
+    "q": "Who is the only man to play in three FIFA World Cup finals?",
+    "opts": [
+      "Lionel Messi",
+      "Lothar Matthäus",
+      "Cafu",
+      "Paolo Maldini"
+    ],
+    "correct": 2
+  },
+  {
+    "q": "Which country has won the most FIFA World Cups?",
+    "opts": [
+      "Germany",
+      "Brazil",
+      "Italy",
+      "Argentina"
+    ],
+    "correct": 1
+  },
+  {
+    "q": "Which country has appeared in multiple World Cup finals but has never hosted the tournament alone?",
+    "opts": [
+      "Portugal",
+      "Netherlands",
+      "Belgium",
+      "Croatia"
+    ],
+    "correct": 0
+  },
+  {
+    "q": "Which country became the first team to successfully defend the World Cup title?",
+    "opts": [
+      "Brazil",
+      "Uruguay",
+      "Italy",
+      "Germany"
+    ],
+    "correct": 2
+  },
+  {
+    "q": "Which player scored 13 goals in a single World Cup tournament, still a record?",
+    "opts": [
+      "Just Fontaine",
+      "Gerd Müller",
+      "Eusébio",
+      "Sándor Kocsis"
+    ],
+    "correct": 0
+  },
+  {
+    "q": "Which football legend scored in two different World Cup finals, including 1998 and 2006?",
+    "opts": [
+      "Ronaldo Nazário",
+      "Zinedine Zidane",
+      "Thierry Henry",
+      "Roberto Baggio"
+    ],
+    "correct": 1
+  },
+  {
+    "q": "Apart from Zidane, which current French superstar has scored in two World Cup finals?",
+    "opts": [
+      "Antoine Griezmann",
+      "Olivier Giroud",
+      "Kylian Mbappé",
+      "Karim Benzema"
+    ],
+    "correct": 2
+  },
+  {
+    "q": "Who became the oldest player to score a World Cup hat-trick?",
+    "opts": [
+      "Lionel Messi",
+      "Cristiano Ronaldo",
+      "Miroslav Klose",
+      "Luis Suárez"
+    ],
+    "correct": 1
+  },
+  {
+    "q": "Which player has made the most appearances in men’s World Cup history?",
+    "opts": [
+      "Cristiano Ronaldo",
+      "Lothar Matthäus",
+      "Lionel Messi",
+      "Paolo Maldini"
+    ],
+    "correct": 2
+  },
+  {
+    "q": "Which city/region will host the 2026 World Cup final?",
+    "opts": [
+      "New York / New Jersey",
+      "Los Angeles / Pasadena",
+      "Dallas / Arlington",
+      "Miami / Fort Lauderdale"
+    ],
+    "correct": 0
+  },
+  {
+    "q": "How many matches will be played in the 2026 FIFA World Cup?",
+    "opts": [
+      "96 matches",
+      "104 matches",
+      "108 matches",
+      "112 matches"
+    ],
+    "correct": 1
+  },
+  {
+    "q": "What is the name of the official match ball for the 2026 FIFA World Cup?",
+    "opts": [
+      "Brazuca",
+      "Al Rihla",
+      "Trionda",
+      "Telstar"
+    ],
+    "correct": 2
+  },
+  {
+    "q": "Which country will be the smallest nation ever to make its FIFA World Cup debut in 2026?",
+    "opts": [
+      "Iceland",
+      "Cape Verde",
+      "Malta",
+      "Trinidad and Tobago"
+    ],
+    "correct": 1
+  },
+  {
+    "q": "Which World Cup introduced the idea that later became yellow and red cards?",
+    "opts": [
+      "1958 World Cup",
+      "1962 World Cup",
+      "1966 World Cup",
+      "1970 World Cup"
+    ],
+    "correct": 2
+  }
+]
