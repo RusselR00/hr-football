@@ -36,8 +36,65 @@ function SectionTitle({ children }) {
   return <p className="text-white/50 text-xs font-bold uppercase tracking-widest mb-3">{children}</p>;
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-export default function HostApp() {
+// ─── Host Login ───────────────────────────────────────────────────────────────
+function HostLogin({ onAuth }) {
+  const [pw, setPw]     = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const r = await fetch('/api/host-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
+      });
+      if (r.ok) {
+        sessionStorage.setItem('hostAuth', '1');
+        onAuth();
+      } else {
+        setError('Wrong password');
+        setPw('');
+      }
+    } catch {
+      setError('Connection error');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-6"
+      style={{ background: 'linear-gradient(160deg,#0D47A1 0%,#0a0f1e 60%)' }}>
+      <div className="w-full max-w-xs">
+        <div className="text-center mb-8">
+          <p className="text-white font-black text-2xl">🎮 Host Access</p>
+          <p className="text-white/40 text-sm mt-1">The Deep Seafood Company · 2026</p>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <input
+            type="password"
+            placeholder="Host password"
+            value={pw}
+            onChange={e => setPw(e.target.value)}
+            autoFocus
+            className="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-2xl px-4 py-4 text-center text-lg tracking-widest focus:outline-none focus:border-blue-400"
+          />
+          {error && <p className="text-red-400 text-sm text-center font-semibold">{error}</p>}
+          <button type="submit" disabled={!pw || loading}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl text-base btn-press disabled:opacity-40 transition-all">
+            {loading ? 'Checking…' : 'Enter Dashboard →'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main dashboard (only rendered after auth) ────────────────────────────────
+function HostDashboard() {
   const [tab, setTab]           = useState('control');
   const [phase, setPhase]       = useState('lobby');
   const [players, setPlayers]   = useState({});
@@ -51,9 +108,13 @@ export default function HostApp() {
 
   useEffect(() => {
     setPlayerUrl(window.location.origin);
-    fetch('/api/network-ip').then(r => r.json()).then(({ ip }) => {
-      const port = window.location.port || '80';
-      setNetworkUrl(`http://${ip}:${port}`);
+    fetch('/api/network-ip').then(r => r.json()).then(({ ip, publicUrl }) => {
+      if (publicUrl) {
+        setNetworkUrl(publicUrl);
+      } else {
+        const port = window.location.port || '80';
+        setNetworkUrl(`http://${ip}:${port}`);
+      }
     }).catch(() => {});
 
     socket.connect();
@@ -447,4 +508,11 @@ export default function HostApp() {
       </div>
     </div>
   );
+}
+
+// ─── Entry point — auth gate ──────────────────────────────────────────────────
+export default function HostApp() {
+  const [authed, setAuthed] = useState(() => sessionStorage.getItem('hostAuth') === '1');
+  if (!authed) return <HostLogin onAuth={() => setAuthed(true)} />;
+  return <HostDashboard />;
 }

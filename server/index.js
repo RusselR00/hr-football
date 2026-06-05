@@ -629,6 +629,7 @@ app.get('/api/results/:sessionId', (req, res) => {
 });
 
 app.get('/api/network-ip', (req, res) => {
+  const publicUrl = process.env.PUBLIC_URL || null;
   const { networkInterfaces } = require('os');
   const nets = networkInterfaces();
   let ip = 'localhost';
@@ -638,7 +639,14 @@ app.get('/api/network-ip', (req, res) => {
     }
     if (ip !== 'localhost') break;
   }
-  res.json({ ip });
+  res.json({ ip, publicUrl });
+});
+
+app.post('/api/host-auth', (req, res) => {
+  const { password } = req.body || {};
+  const expected = process.env.HOST_PASSWORD || 'deep2026';
+  if (password === expected) return res.json({ ok: true });
+  res.status(401).json({ ok: false, error: 'Wrong password' });
 });
 
 app.get('/api/qr', async (req, res) => {
