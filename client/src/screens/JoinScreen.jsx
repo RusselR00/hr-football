@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Logo from '../components/Logo';
 
 const AVATARS = ['🦈','🐟','🐠','🐡','🦑','🦞','🐙','🦀'];
 
@@ -22,9 +23,7 @@ export default function JoinScreen({ socket }) {
     <div className="screen game-bg flex flex-col items-center justify-center px-5">
       {/* Logo */}
       <div className="text-center mb-7 animate-fade-in">
-        <img src="/logo.png" alt="Deep Seafood" className="h-24 w-auto mx-auto mb-3 animate-bounce-in drop-shadow-2xl"
-          onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
-        <div style={{display:'none'}} className="text-7xl mb-3">⚽</div>
+        <Logo height={88} className="mb-3 animate-bounce-in" />
         <h1 className="text-2xl font-black text-white tracking-tight leading-tight">Football Championship</h1>
         <p className="text-blue-400 font-bold text-base mt-1">2026 ⚽</p>
       </div>

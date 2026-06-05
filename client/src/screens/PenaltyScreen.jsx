@@ -163,6 +163,10 @@ export default function PenaltyScreen({ socket, player }) {
         background: 'linear-gradient(180deg, #0a1628 0%, #132347 60%, #1a3a5c 100%)',
         flex: '0 0 52%',
       }}>
+        {/* Logo */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
+          <img src="/logo.png" alt="" className="h-7 w-auto opacity-70" onError={e => e.target.style.display='none'} />
+        </div>
         {/* Floodlights */}
         <div className="absolute top-2 left-4 text-xl opacity-60">💡</div>
         <div className="absolute top-2 right-4 text-xl opacity-60">💡</div>

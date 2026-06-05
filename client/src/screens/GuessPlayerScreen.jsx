@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { LogoBadge } from '../components/Logo';
 
 export default function GuessPlayerScreen({ socket, guessData }) {
   const [answer, setAnswer] = useState('');
@@ -36,7 +37,8 @@ export default function GuessPlayerScreen({ socket, guessData }) {
   return (
     <div className="screen game-bg flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
+      <LogoBadge className="px-4 pt-4 pb-1 flex-shrink-0" />
+      <div className="flex items-center justify-between px-4 pb-3 flex-shrink-0">
         <div className="bg-white/10 px-3 py-2 rounded-xl">
           <span className="text-white/70 text-sm font-bold">Player {index + 1} / {total}</span>
         </div>

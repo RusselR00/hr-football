@@ -1,11 +1,13 @@
 import React from 'react';
+import Logo from '../components/Logo';
 
 export default function LobbyScreen({ player, leaderboard }) {
   return (
     <div className="screen game-bg flex flex-col items-center justify-center px-5">
       {/* Confirmed */}
-      <div className="text-center mb-7 animate-bounce-in">
-        <div className="text-7xl mb-3">✅</div>
+      <div className="text-center mb-6 animate-bounce-in">
+        <Logo height={60} className="mb-3" />
+        <div className="text-5xl mb-2">✅</div>
         <h1 className="text-3xl font-black text-white">You're In!</h1>
         <p className="text-blue-300 font-semibold text-lg mt-1">{player?.name}</p>
       </div>

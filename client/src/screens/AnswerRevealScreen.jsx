@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { LogoBadge } from '../components/Logo';
 
 const LABELS  = ['A','B','C','D'];
 const COLORS  = ['bg-red-500','bg-blue-500','bg-amber-500','bg-green-500'];
@@ -23,6 +24,8 @@ export default function AnswerRevealScreen({ revealData }) {
 
   return (
     <div className="screen game-bg flex flex-col px-4 pt-5">
+      {/* Logo */}
+      <LogoBadge className="mb-3 flex-shrink-0" />
       {/* Header */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className={`px-3 py-1.5 rounded-full text-sm font-black ${

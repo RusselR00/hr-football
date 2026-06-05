@@ -383,9 +383,11 @@ io.on('connection', socket => {
     pushScreenToAll(screen);
   }));
 
-  socket.on('host:start-quiz',    safe(() => { if (socket.id === game.hostId && game.phase === 'lobby')      startQuiz(); }));
-  socket.on('host:start-guess',   safe(() => { if (socket.id === game.hostId && game.phase === 'quiz-done')  startGuessPlayer(); }));
-  socket.on('host:start-penalty', safe(() => { if (socket.id === game.hostId && game.phase === 'guess-done') startPenaltyRound(); }));
+  // Host can start ANY round from lobby or any between-round phase
+  const BETWEEN_PHASES = new Set(['lobby','quiz-done','guess-done','winner']);
+  socket.on('host:start-quiz',    safe(() => { if (socket.id === game.hostId && BETWEEN_PHASES.has(game.phase)) startQuiz(); }));
+  socket.on('host:start-guess',   safe(() => { if (socket.id === game.hostId && BETWEEN_PHASES.has(game.phase)) startGuessPlayer(); }));
+  socket.on('host:start-penalty', safe(() => { if (socket.id === game.hostId && BETWEEN_PHASES.has(game.phase)) startPenaltyRound(); }));
 
   // ── Slideshow controls ────────────────────────────────────────────────────
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { LogoBadge } from '../components/Logo';
 
 const OPTION_STYLES = [
   { bg: 'from-red-500 to-red-700',    active: 'ring-red-300' },
@@ -44,10 +45,8 @@ export default function QuizScreen({ socket, quizData, timerPaused }) {
     <div className="screen game-bg flex flex-col">
       {/* ── TOP BAR ── */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
-        <div className="bg-white/10 px-3 py-2 rounded-xl">
-          <span className="text-white/70 text-sm font-bold">
-            Q{quizData.index + 1} / {quizData.total}
-          </span>
+        <div className="flex items-center gap-2">
+          <LogoBadge />
         </div>
 
         {/* Timer ring / pause indicator */}
@@ -72,7 +71,7 @@ export default function QuizScreen({ socket, quizData, timerPaused }) {
         )}
 
         <div className="bg-white/10 px-3 py-2 rounded-xl">
-          <span className="text-white/70 text-sm font-bold">⚽ Quiz</span>
+          <span className="text-white/70 text-sm font-bold">Q{quizData.index+1}/{quizData.total}</span>
         </div>
       </div>
 

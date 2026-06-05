@@ -84,8 +84,7 @@ export default function HostApp() {
   const joinUrl     = networkUrl || playerUrl;
   const currentStep = PHASE_STEPS.indexOf(phase);
 
-  const advance = () => { if (config?.event) socket.emit(config.event); if (config?.event === 'host:reset') setPhase('lobby'); };
-  const skip    = () => socket.emit('host:skip');
+  const skip = () => socket.emit('host:skip');
   const push    = (screen) => socket.emit('host:push-screen', { screen });
 
   // ── CONTROL TAB ────────────────────────────────────────────────────────────
@@ -230,16 +229,27 @@ export default function HostApp() {
             </div>
           )}
 
-          {/* ── Round advance button ── */}
-          {config.next && config.canAdvance && (
-            <button onClick={advance}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black text-base py-4 rounded-xl shadow-lg btn-press mt-1">
-              {config.next} →
-            </button>
-          )}
-          {!config.canAdvance && phase !== 'quiz' && phase !== 'guess-player' && phase !== 'penalty' && (
-            <div className="w-full bg-white/5 border border-white/10 text-white/40 text-sm py-3 rounded-xl text-center font-semibold">
-              ⏳ Round in progress…
+          {/* ── Free round selection (available between rounds) ── */}
+          {['lobby','quiz-done','guess-done','winner'].includes(phase) && (
+            <div className="border-t border-white/10 pt-3 space-y-2">
+              <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-2">Start a Round</p>
+              {[
+                { label: '⚽ Football Quiz', event: 'host:start-quiz',    desc: `${quizState.total || '?'} questions` },
+                { label: '🕵️ Guess the Player', event: 'host:start-guess',   desc: '5 players' },
+                { label: '🥅 Penalty Shootout', event: 'host:start-penalty', desc: '5 kicks each' },
+              ].map(r => (
+                <button key={r.event} onClick={() => socket.emit(r.event)}
+                  className="w-full flex items-center justify-between bg-white/8 hover:bg-white/15 border border-white/15 text-white font-bold py-3 px-4 rounded-xl btn-press transition-all">
+                  <span className="text-sm">{r.label}</span>
+                  <span className="text-white/40 text-xs">{r.desc} →</span>
+                </button>
+              ))}
+              {phase === 'winner' && (
+                <button onClick={() => { socket.emit('host:reset'); }}
+                  className="w-full bg-blue-600/25 border border-blue-500/30 text-blue-300 font-bold py-3 rounded-xl btn-press text-sm hover:bg-blue-600/35">
+                  🔄 Reset to Lobby (New Game)
+                </button>
+              )}
             </div>
           )}
         </div>

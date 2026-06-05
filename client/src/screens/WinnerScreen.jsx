@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import Logo from '../components/Logo';
 
 /* Simple canvas confetti — no deps needed */
 function Confetti() {
@@ -112,8 +113,7 @@ export default function WinnerScreen({ winner, leaderboard, player }) {
           ))}
         </div>
 
-        <img src="/logo.png" alt="" className="h-12 w-auto mx-auto mb-2 opacity-60"
-          onError={e => e.target.style.display='none'} />
+        <Logo height={56} className="mb-2 opacity-80" />
         <p className="text-white/20 text-xs text-center mb-8">
           Deep Seafood Football Championship 2026 ⚽
         </p>

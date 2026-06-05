@@ -1,4 +1,5 @@
 import React from 'react';
+import { LogoBadge } from '../components/Logo';
 
 const MEDALS = ['🥇','🥈','🥉'];
 
@@ -8,6 +9,7 @@ export default function LeaderboardScreen({ leaderboard, player, roundEnd }) {
   return (
     <div className="screen game-bg flex flex-col">
       {/* Round complete */}
+      <LogoBadge className="flex-shrink-0 mb-1" />
       {roundEnd && (
         <div className="mx-4 mt-4 bg-gradient-to-r from-blue-600/40 to-red-600/30 border border-white/20 rounded-2xl p-4 text-center animate-bounce-in flex-shrink-0">
           <p className="text-white font-black text-xl">{roundEnd.message}</p>
