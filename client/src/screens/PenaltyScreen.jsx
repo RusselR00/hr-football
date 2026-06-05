@@ -1,98 +1,131 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 
-/*
-  Penalty Shootout — 10 kicks, 5 zones, smart goalkeeper with diving animation
-  Zones: 0=left corner  1=left-centre  2=centre  3=right-centre  4=right corner
-*/
-
 const TOTAL_KICKS = 10;
 
-// Where ball lands in goal for each of 5 zones
-const BALL_TARGETS = [
-  { x: '8%',  y: '30%' },  // 0 left corner
-  { x: '28%', y: '50%' },  // 1 left centre
-  { x: '50%', y: '22%' },  // 2 centre (top)
-  { x: '72%', y: '50%' },  // 3 right centre
-  { x: '92%', y: '30%' },  // 4 right corner
+// Where ball goes on a GOAL (past the keeper) — corners / sides
+const GOAL_TARGETS = [
+  { x: '7%',  y: '28%' },  // 0 left corner
+  { x: '26%', y: '52%' },  // 1 left centre
+  { x: '50%', y: '18%' },  // 2 top centre
+  { x: '74%', y: '52%' },  // 3 right centre
+  { x: '93%', y: '28%' },  // 4 right corner
 ];
 
-// Goalkeeper position (left %) and body rotation for each zone
-const GK_POSITIONS  = ['8%',  '27%', '50%', '73%', '92%'];
-const GK_ROTATIONS  = [-55,   -30,    0,     30,    55  ];
-const GK_BODY_LEAN  = ['scaleX(-1) rotate(-55deg)', 'rotate(-30deg)', 'rotate(0deg)', 'rotate(30deg)', 'scaleX(-1) rotate(-55deg)'];
+// Where ball ends up when SAVED — at keeper's glove
+const SAVE_TARGETS = [
+  { x: '2%',  y: '35%' },  // 0 left corner glove
+  { x: '18%', y: '48%' },  // 1 left centre glove
+  { x: '50%', y: '22%' },  // 2 centre glove (arms up)
+  { x: '82%', y: '48%' },  // 3 right centre glove
+  { x: '98%', y: '35%' },  // 4 right corner glove
+];
 
-// Goalkeeper SVG — green kit, red gloves, dives on command
-function GoalkeeperSVG({ zone }) {
-  const rot  = zone !== null ? GK_ROTATIONS[zone]  : 0;
-  const posX = zone !== null ? GK_POSITIONS[zone]  : '50%';
+// Keeper dive position and angle per zone
+const GK_LEFT = ['7%', '26%', '50%', '74%', '93%'];
+const GK_ROT  = [-58,  -32,   0,     32,    58  ];
+
+// ── BIG Goalkeeper SVG ────────────────────────────────────────────────────────
+function Goalkeeper({ zone, holdingBall }) {
+  const posX = zone !== null ? GK_LEFT[zone] : '50%';
+  const rot  = zone !== null ? GK_ROT[zone]  : 0;
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        bottom: 2,
-        left: posX,
-        transform: `translateX(-50%) rotate(${rot}deg)`,
-        transition: 'left 0.42s cubic-bezier(0.34,1.56,0.64,1), transform 0.42s ease',
-        transformOrigin: 'bottom center',
-        zIndex: 10,
-        filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.6))',
-      }}
-    >
-      <svg viewBox="0 0 54 78" width="44" height="60">
-        {/* Shorts */}
-        <rect x="18" y="52" width="8" height="18" rx="3" fill="#1e3a8a"/>
-        <rect x="28" y="52" width="8" height="18" rx="3" fill="#1e3a8a"/>
-        {/* Jersey */}
-        <rect x="14" y="26" width="26" height="30" rx="5" fill="#16a34a"/>
+    <div style={{
+      position: 'absolute',
+      bottom: 0,
+      left: posX,
+      transform: `translateX(-50%) rotate(${rot}deg)`,
+      transition: 'left 0.44s cubic-bezier(0.34,1.56,0.64,1), transform 0.44s ease',
+      transformOrigin: 'bottom center',
+      zIndex: 15,
+      filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.7))',
+    }}>
+      <svg viewBox="0 0 80 120" width="72" height="108">
+        {/* ── Boots ── */}
+        <ellipse cx="28" cy="113" rx="13" ry="6" fill="#111"/>
+        <ellipse cx="52" cy="113" rx="13" ry="6" fill="#111"/>
+        {/* ── Socks ── */}
+        <rect x="21" y="90" width="14" height="24" rx="3" fill="#fff"/>
+        <rect x="45" y="90" width="14" height="24" rx="3" fill="#fff"/>
+        {/* ── Shorts ── */}
+        <rect x="20" y="70" width="16" height="24" rx="4" fill="#1e3a8a"/>
+        <rect x="44" y="70" width="16" height="24" rx="4" fill="#1e3a8a"/>
+        {/* ── Jersey body ── */}
+        <rect x="16" y="36" width="48" height="38" rx="7" fill="#16a34a"/>
+        {/* Jersey stripes */}
+        <rect x="22" y="36" width="5" height="38" rx="2" fill="#15803d" opacity="0.5"/>
+        <rect x="53" y="36" width="5" height="38" rx="2" fill="#15803d" opacity="0.5"/>
         {/* Number */}
-        <text x="27" y="45" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">1</text>
-        {/* Head */}
-        <circle cx="27" cy="16" r="11" fill="#fde68a"/>
+        <text x="40" y="62" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" fontFamily="Arial">1</text>
+        {/* ── Left arm ── */}
+        <line x1="16" y1="50" x2="-2" y2="38" stroke="#16a34a" strokeWidth="14" strokeLinecap="round"/>
+        {/* ── Right arm ── */}
+        <line x1="64" y1="50" x2="82" y2="38" stroke="#16a34a" strokeWidth="14" strokeLinecap="round"/>
+        {/* ── Left glove ── */}
+        <circle cx="-2" cy="38" r="13" fill="#dc2626"/>
+        <circle cx="-2" cy="38" r="9"  fill="#ef4444"/>
+        {/* glove fingers */}
+        <rect x="-11" y="28" width="5" height="9" rx="2" fill="#dc2626"/>
+        <rect x="-5"  y="26" width="5" height="9" rx="2" fill="#dc2626"/>
+        <rect x="1"   y="27" width="5" height="9" rx="2" fill="#dc2626"/>
+        {/* ── Right glove ── */}
+        <circle cx="82" cy="38" r="13" fill="#dc2626"/>
+        <circle cx="82" cy="38" r="9"  fill="#ef4444"/>
+        <rect x="70"  y="28" width="5" height="9" rx="2" fill="#dc2626"/>
+        <rect x="76"  y="26" width="5" height="9" rx="2" fill="#dc2626"/>
+        <rect x="82"  y="27" width="5" height="9" rx="2" fill="#dc2626"/>
+        {/* ── Neck ── */}
+        <rect x="33" y="22" width="14" height="16" rx="4" fill="#fde68a"/>
+        {/* ── Head ── */}
+        <circle cx="40" cy="18" r="17" fill="#fde68a"/>
         {/* Hair */}
-        <ellipse cx="27" cy="7" rx="11" ry="5" fill="#92400e"/>
-        {/* Face details */}
-        <circle cx="23" cy="16" r="1.5" fill="#78350f"/>
-        <circle cx="31" cy="16" r="1.5" fill="#78350f"/>
-        <path d="M23 21 Q27 24 31 21" stroke="#78350f" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-        {/* Left arm */}
-        <line x1="14" y1="36" x2="1"  y2="28" stroke="#16a34a" strokeWidth="9" strokeLinecap="round"/>
-        {/* Right arm */}
-        <line x1="40" y1="36" x2="53" y2="28" stroke="#16a34a" strokeWidth="9" strokeLinecap="round"/>
-        {/* Left glove */}
-        <circle cx="1"  cy="28" r="8" fill="#dc2626"/>
-        <circle cx="1"  cy="28" r="5" fill="#ef4444"/>
-        {/* Right glove */}
-        <circle cx="53" cy="28" r="8" fill="#dc2626"/>
-        <circle cx="53" cy="28" r="5" fill="#ef4444"/>
-        {/* Boots */}
-        <ellipse cx="22" cy="70" rx="8" ry="4" fill="#1c1917"/>
-        <ellipse cx="34" cy="70" rx="8" ry="4" fill="#1c1917"/>
+        <ellipse cx="40" cy="5"  rx="17" ry="8" fill="#92400e"/>
+        <ellipse cx="27" cy="10" rx="7"  ry="9" fill="#92400e"/>
+        <ellipse cx="53" cy="10" rx="7"  ry="9" fill="#92400e"/>
+        {/* Eyes */}
+        <circle cx="33" cy="18" r="3"   fill="white"/>
+        <circle cx="47" cy="18" r="3"   fill="white"/>
+        <circle cx="34" cy="18" r="1.8" fill="#1c1917"/>
+        <circle cx="48" cy="18" r="1.8" fill="#1c1917"/>
+        {/* Mouth */}
+        <path d="M33 26 Q40 31 47 26" stroke="#92400e" strokeWidth="2" fill="none" strokeLinecap="round"/>
+        {/* Glove captain band */}
+        <rect x="-10" y="42" width="16" height="4" rx="2" fill="#facc15"/>
+
+        {/* ── Ball in hands (shown when saved) ── */}
+        {holdingBall && (
+          <g>
+            {/* Ball held at left glove */}
+            <circle cx="-2" cy="38" r="11" fill="white" stroke="#1c1917" strokeWidth="1.5"/>
+            {/* Pentagon pattern */}
+            <polygon points="-2,29 5,34 3,42 -7,42 -9,34" fill="#1c1917" opacity="0.7"/>
+            <line x1="-2" y1="29" x2="-2" y2="27" stroke="#1c1917" strokeWidth="1" opacity="0.5"/>
+          </g>
+        )}
       </svg>
     </div>
   );
 }
 
-// Zone aim indicators shown in the goal when picking
-const ZONE_LABELS = ['◀◀', '◀', '▲', '▶', '▶▶'];
-const ZONE_NAMES  = ['Left\nCorner', 'Left', 'Top\nCentre', 'Right', 'Right\nCorner'];
+const ZONE_LABELS = ['◀◀ Corner', '◀ Left', '▲ Top', 'Right ▶', 'Corner ▶▶'];
 
 export default function PenaltyScreen({ socket, player }) {
-  const [kickNum, setKickNum]       = useState(1);
-  const [phase, setPhase]           = useState('ready');   // ready|aiming|shooting|result|done
-  const [aimZone, setAimZone]       = useState(null);      // 0-4 while dragging
-  const [gkZone, setGkZone]         = useState(null);
+  const [kickNum, setKickNum]     = useState(1);
+  const [phase, setPhase]         = useState('ready');
+  const [aimZone, setAimZone]     = useState(null);
+  const [gkZone, setGkZone]       = useState(null);
   const [ballTarget, setBallTarget] = useState(null);
   const [ballFlying, setBallFlying] = useState(false);
-  const [isGoal, setIsGoal]         = useState(null);
-  const [goals, setGoals]           = useState(0);
-  const [ptsEarned, setPtsEarned]   = useState(0);
-  const [history, setHistory]       = useState([]);
-  const [netShake, setNetShake]     = useState(false);
-  const [savedAnim, setSavedAnim]   = useState(false);
+  const [ballVisible, setBallVisible] = useState(true);  // hides after save (ball in hands)
+  const [holdingBall, setHoldingBall] = useState(false); // keeper holds ball after save
+  const [isGoal, setIsGoal]       = useState(null);
+  const [goals, setGoals]         = useState(0);
+  const [ptsEarned, setPtsEarned] = useState(0);
+  const [history, setHistory]     = useState([]);
+  const [netShake, setNetShake]   = useState(false);
 
-  const touchStart   = useRef(null);
-  const hasShot      = useRef(false);
+  const touchStart = useRef(null);
+  const hasShot    = useRef(false);
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -100,34 +133,50 @@ export default function PenaltyScreen({ socket, player }) {
     const t = (fn, ms) => { const id = setTimeout(fn, ms); timers.push(id); };
 
     const onResume = ({ shots, nextKick }) => {
-      const hist = shots.map(s => ({ goal: s.goal }));
-      setHistory(hist);
-      setGoals(hist.filter(h => h.goal).length);
+      setHistory(shots.map(s => ({ goal: s.goal })));
+      setGoals(shots.filter(s => s.goal).length);
       setKickNum(nextKick);
-      setPhase('ready');
-      setBallFlying(false);
-      setGkZone(null);
-      setIsGoal(null);
+      setPhase('ready'); setBallFlying(false); setBallVisible(true);
+      setGkZone(null); setIsGoal(null); setAimZone(null); setHoldingBall(false);
       hasShot.current = false;
     };
 
     const onKickResult = ({ dir, goalkeeperDir, goal, kickNum: k, totalKicks }) => {
-      // GK dives simultaneously with ball
+      // GK dives toward the player's zone
       setGkZone(goalkeeperDir);
-      setBallTarget(BALL_TARGETS[dir]);
-      t(() => setBallFlying(true), 30);
-      t(() => {
-        setIsGoal(goal);
-        setPhase('result');
-        if (goal) { setGoals(g => g + 1); setNetShake(true); t(() => setNetShake(false), 500); }
-        else       { setSavedAnim(true); t(() => setSavedAnim(false), 600); }
-        setHistory(h => [...h, { goal }]);
-      }, 420);
+
+      if (goal) {
+        // GOAL: ball flies INTO THE NET past the keeper
+        setBallTarget(GOAL_TARGETS[dir]);
+        t(() => setBallFlying(true), 30);
+        t(() => {
+          setIsGoal(true);
+          setPhase('result');
+          setGoals(g => g + 1);
+          setNetShake(true);
+          t(() => setNetShake(false), 500);
+          setHistory(h => [...h, { goal: true }]);
+        }, 440);
+      } else {
+        // SAVE: ball flies TO THE KEEPER'S GLOVE
+        setBallTarget(SAVE_TARGETS[goalkeeperDir]);
+        t(() => setBallFlying(true), 30);
+        t(() => {
+          setIsGoal(false);
+          setPhase('result');
+          setHistory(h => [...h, { goal: false }]);
+          // Ball disappears and appears IN keeper's hands
+          t(() => { setBallVisible(false); setHoldingBall(true); }, 100);
+        }, 440);
+      }
+
       if (k < totalKicks) {
         t(() => {
           setKickNum(k + 1);
           setPhase('ready');
           setBallFlying(false);
+          setBallVisible(true);
+          setHoldingBall(false);
           setGkZone(null);
           setIsGoal(null);
           setAimZone(null);
@@ -140,9 +189,10 @@ export default function PenaltyScreen({ socket, player }) {
       t(() => { setGoals(g); setPtsEarned(pts); setPhase('done'); }, 2800);
     };
 
-    socket.on('penalty:start',       () => {
+    socket.on('penalty:start', () => {
       setKickNum(1); setPhase('ready'); setGoals(0); setHistory([]);
-      setBallFlying(false); setGkZone(null); setIsGoal(null); setAimZone(null);
+      setBallFlying(false); setBallVisible(true); setHoldingBall(false);
+      setGkZone(null); setIsGoal(null); setAimZone(null);
       hasShot.current = false;
     });
     socket.on('penalty:resume',      onResume);
@@ -158,13 +208,12 @@ export default function PenaltyScreen({ socket, player }) {
     };
   }, [socket]);
 
-  // Map swipe dx to zone 0-4
   const dxToZone = (dx, w) => {
-    const pct = dx / w;
-    if (pct < -0.28) return 0;
-    if (pct < -0.10) return 1;
-    if (pct >  0.28) return 4;
-    if (pct >  0.10) return 3;
+    const p = dx / w;
+    if (p < -0.28) return 0;
+    if (p < -0.09) return 1;
+    if (p >  0.28) return 4;
+    if (p >  0.09) return 3;
     return 2;
   };
 
@@ -173,80 +222,61 @@ export default function PenaltyScreen({ socket, player }) {
     hasShot.current = true;
     setPhase('shooting');
     setAimZone(zone);
-    setBallTarget(BALL_TARGETS[zone]);
     socket.emit('penalty:shoot', { direction: zone });
   }, [phase, socket]);
 
-  const onTouchStart = (e) => {
+  const onTouchStart = e => {
     if (hasShot.current || phase !== 'ready') return;
     const t = e.touches[0];
     touchStart.current = { x: t.clientX, y: t.clientY };
   };
-
-  const onTouchMove = (e) => {
-    if (!touchStart.current || hasShot.current || phase !== 'ready') return;
+  const onTouchMove = e => {
+    if (!touchStart.current || hasShot.current) return;
     const t = e.touches[0];
     const dx = t.clientX - touchStart.current.x;
     const dy = t.clientY - touchStart.current.y;
-    if (Math.abs(dy) > 15) {
-      const w = containerRef.current?.offsetWidth || 375;
-      setAimZone(dxToZone(dx, w));
-    }
+    if (Math.abs(dy) > 12) setAimZone(dxToZone(dx, containerRef.current?.offsetWidth || 375));
   };
-
-  const onTouchEnd = (e) => {
-    if (!touchStart.current || hasShot.current || phase !== 'ready') return;
+  const onTouchEnd = e => {
+    if (!touchStart.current || hasShot.current) return;
     const t = e.changedTouches[0];
     const dx = t.clientX - touchStart.current.x;
     const dy = t.clientY - touchStart.current.y;
     touchStart.current = null;
-    if (dy < -30) {
-      const w = containerRef.current?.offsetWidth || 375;
-      shoot(dxToZone(dx, w));
-    } else {
-      setAimZone(null);
-    }
+    if (dy < -30) shoot(dxToZone(dx, containerRef.current?.offsetWidth || 375));
+    else setAimZone(null);
   };
-
-  const onMouseDown = (e) => { touchStart.current = { x: e.clientX, y: e.clientY }; };
-  const onMouseMove = (e) => {
-    if (!touchStart.current || hasShot.current || phase !== 'ready') return;
+  const onMouseDown = e => { touchStart.current = { x: e.clientX, y: e.clientY }; };
+  const onMouseMove = e => {
+    if (!touchStart.current || hasShot.current) return;
     const dx = e.clientX - touchStart.current.x;
     const dy = e.clientY - touchStart.current.y;
-    if (Math.abs(dy) > 8) {
-      const w = containerRef.current?.offsetWidth || 375;
-      setAimZone(dxToZone(dx, w));
-    }
+    if (Math.abs(dy) > 8) setAimZone(dxToZone(dx, containerRef.current?.offsetWidth || 375));
   };
-  const onMouseUp = (e) => {
-    if (!touchStart.current || hasShot.current || phase !== 'ready') return;
+  const onMouseUp = e => {
+    if (!touchStart.current || hasShot.current) return;
     const dx = e.clientX - touchStart.current.x;
     const dy = e.clientY - touchStart.current.y;
     touchStart.current = null;
-    if (dy < -15) {
-      const w = containerRef.current?.offsetWidth || 375;
-      shoot(dxToZone(dx, w));
-    } else setAimZone(null);
+    if (dy < -15) shoot(dxToZone(dx, containerRef.current?.offsetWidth || 375));
+    else setAimZone(null);
   };
 
   // ── Done screen ──────────────────────────────────────────────────────────
   if (phase === 'done') {
-    const pct = Math.round((goals / TOTAL_KICKS) * 100);
     return (
       <div className="screen game-bg flex flex-col items-center justify-center px-6 text-center">
         <div className="text-7xl mb-4 animate-bounce-in">
-          {goals >= 8 ? '🔥' : goals >= 5 ? '⚽' : goals >= 3 ? '😤' : '😅'}
+          {goals >= 8 ? '🔥' : goals >= 6 ? '⚽' : goals >= 4 ? '😤' : '😅'}
         </div>
         <h2 className="text-white font-black text-4xl mb-1">{goals} / {TOTAL_KICKS}</h2>
         <p className="text-white/50 mb-1">Goals scored</p>
         <p className="text-yellow-300 font-black text-2xl mb-6">+{ptsEarned} pts</p>
-        <div className="flex gap-2 mb-8 flex-wrap justify-center">
+        <div className="flex gap-1.5 mb-8 flex-wrap justify-center">
           {history.map((k, i) => (
-            <div key={i} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 font-bold ${
+            <div key={i} className={`w-7 h-7 rounded-full flex items-center justify-center text-xs border-2 font-bold ${
               k.goal ? 'bg-green-500/30 border-green-400 text-green-300' : 'bg-red-500/20 border-red-400/40 text-red-400'
-            }`}>
-              {k.goal ? '⚽' : '🧤'}
-            </div>
+            }`}>{k.goal ? '⚽' : '🧤'}</div>
           ))}
         </div>
         <div className="bg-white/10 border border-white/20 rounded-2xl px-6 py-3">
@@ -256,126 +286,108 @@ export default function PenaltyScreen({ socket, player }) {
     );
   }
 
-  // ── Game screen ──────────────────────────────────────────────────────────
+  // ── Game ─────────────────────────────────────────────────────────────────
   return (
-    <div
-      ref={containerRef}
-      className="fixed inset-0 flex flex-col select-none overflow-hidden"
+    <div ref={containerRef} className="fixed inset-0 flex flex-col select-none overflow-hidden"
       style={{ touchAction: 'none', userSelect: 'none' }}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
+      onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+      onMouseDown={onMouseDown}   onMouseMove={onMouseMove} onMouseUp={onMouseUp}
     >
-      {/* ── STADIUM SKY ─────────────────────────────────────────────────── */}
+      {/* ── STADIUM ─────────────────────────────────────────────────────── */}
       <div className="relative flex flex-col items-center" style={{
-        background: 'linear-gradient(180deg, #0a1628 0%, #132347 60%, #1a3a5c 100%)',
-        flex: '0 0 54%',
+        background: 'linear-gradient(180deg,#07101f 0%,#0d1e3a 55%,#162d50 100%)',
+        flex: '0 0 56%',
       }}>
-        {/* Logo centre */}
+        {/* Logo */}
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
-          <img src="/logo.png" alt="" className="h-8 w-auto opacity-70" onError={e => e.target.style.display='none'} />
+          <img src="/logo.png" alt="" className="h-8 w-auto opacity-60" onError={e => e.target.style.display='none'} />
         </div>
-        <div className="absolute top-2 left-4 text-lg opacity-50">💡</div>
-        <div className="absolute top-2 right-4 text-lg opacity-50">💡</div>
+        {/* Floodlights */}
+        <div className="absolute top-2 left-3 text-lg opacity-50">💡</div>
+        <div className="absolute top-2 right-3 text-lg opacity-50">💡</div>
 
         {/* HUD */}
-        <div className="flex items-center justify-between w-full px-4 pt-12 pb-1 z-20">
-          <div className="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
+        <div className="flex items-center justify-between w-full px-3 pt-12 pb-1 z-20">
+          <div className="bg-black/50 px-3 py-1 rounded-full border border-white/10">
             <span className="text-white font-bold text-sm">Kick {kickNum}/{TOTAL_KICKS}</span>
           </div>
-          {/* Kick dots */}
           <div className="flex gap-1">
             {Array.from({ length: TOTAL_KICKS }).map((_, i) => (
-              <div key={i} className={`w-2 h-2 rounded-full border ${
+              <div key={i} className={`rounded-full border ${
                 i < history.length
-                  ? history[i].goal ? 'bg-green-400 border-green-300' : 'bg-red-400 border-red-300'
-                  : i === kickNum - 1 ? 'bg-white border-white animate-pulse' : 'bg-white/15 border-white/15'
+                  ? history[i].goal ? 'w-2.5 h-2.5 bg-green-400 border-green-300' : 'w-2.5 h-2.5 bg-red-400 border-red-300'
+                  : i === kickNum - 1 ? 'w-2.5 h-2.5 bg-white border-white animate-pulse' : 'w-2 h-2 bg-white/15 border-white/15'
               }`}/>
             ))}
           </div>
-          <div className="bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
+          <div className="bg-black/50 px-3 py-1 rounded-full border border-white/10">
             <span className="text-green-400 font-black text-sm">⚽ {goals}</span>
           </div>
         </div>
 
         {/* ── GOAL ── */}
-        <div className="relative flex-1 flex items-start justify-center w-full px-5 pt-1">
-          <div className="relative w-full" style={{ maxWidth: 320 }}>
-            {/* Net shake animation */}
-            <div
-              className="relative border-white"
-              style={{
-                height: 140,
-                borderTop: '5px solid white', borderLeft: '5px solid white',
-                borderRight: '5px solid white', borderBottom: 'none',
-                boxShadow: netShake
-                  ? '0 0 30px rgba(255,215,0,0.9), inset 0 0 20px rgba(255,215,0,0.3)'
-                  : isGoal === false && savedAnim
-                  ? '0 0 20px rgba(239,68,68,0.8)'
-                  : '0 0 15px rgba(255,255,255,0.15)',
-                animation: netShake ? 'netShake 0.4s ease' : undefined,
-              }}
-            >
+        <div className="relative flex-1 flex items-start justify-center w-full px-4 pt-0">
+          <div className="relative w-full" style={{ maxWidth: 340 }}>
+            <div className="relative border-white" style={{
+              height: 158,
+              borderTop: '6px solid white', borderLeft: '6px solid white',
+              borderRight: '6px solid white', borderBottom: 'none',
+              boxShadow: netShake
+                ? '0 0 35px rgba(255,215,0,1), inset 0 0 25px rgba(255,215,0,0.4)'
+                : '0 0 18px rgba(255,255,255,0.18)',
+              animation: netShake ? 'netShake 0.45s ease' : undefined,
+            }}>
               {/* Net */}
               <div className="absolute inset-0" style={{
-                backgroundImage: 'linear-gradient(rgba(255,255,255,0.2) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.2) 1px,transparent 1px)',
-                backgroundSize: '14px 11px',
-                backgroundColor: 'rgba(8,15,50,0.9)',
+                backgroundImage: 'linear-gradient(rgba(255,255,255,0.18) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.18) 1px,transparent 1px)',
+                backgroundSize: '16px 12px',
+                backgroundColor: 'rgba(5,10,40,0.92)',
               }}/>
 
-              {/* Zone markers — shown while aiming */}
+              {/* Zone aim highlight */}
               {phase === 'ready' && aimZone !== null && (
                 <div className="absolute inset-0 flex pointer-events-none z-20">
                   {[0,1,2,3,4].map(z => (
-                    <div key={z} className={`flex-1 flex items-center justify-center transition-all ${
-                      z === aimZone
-                        ? 'bg-yellow-400/30 border-x border-yellow-400/50'
-                        : 'opacity-20'
-                    }`}>
-                      <span className="text-white/80 text-xs font-black">{ZONE_LABELS[z]}</span>
-                    </div>
+                    <div key={z} className={`flex-1 transition-all ${
+                      z === aimZone ? 'bg-yellow-400/35 border-x-2 border-yellow-300/60' : ''
+                    }`}/>
                   ))}
                 </div>
               )}
 
-              {/* 5 zone dividers (subtle) */}
+              {/* Zone dividers */}
               <div className="absolute inset-0 flex pointer-events-none">
-                {[0,1,2,3].map(i => (
-                  <div key={i} className="flex-1 border-r border-white/10"/>
-                ))}
+                {[0,1,2,3].map(i => <div key={i} className="flex-1 border-r border-white/8"/>)}
               </div>
 
               {/* Flying ball */}
-              {ballFlying && ballTarget && (
+              {ballFlying && ballTarget && ballVisible && (
                 <div className="absolute z-30 pointer-events-none"
                   style={{
                     left: ballTarget.x, top: ballTarget.y,
                     transform: 'translate(-50%,-50%)',
-                    transition: 'left 0.5s cubic-bezier(0.22,1,0.36,1), top 0.5s cubic-bezier(0.22,1,0.36,1)',
-                    filter: isGoal ? 'drop-shadow(0 0 14px gold) drop-shadow(0 0 6px #fff)' : 'drop-shadow(0 2px 6px rgba(0,0,0,0.7))',
-                    fontSize: 22,
-                    animation: 'ballSpin 0.5s linear',
+                    transition: 'left 0.52s cubic-bezier(0.22,1,0.36,1), top 0.52s cubic-bezier(0.22,1,0.36,1)',
+                    filter: isGoal ? 'drop-shadow(0 0 16px gold) drop-shadow(0 0 8px #fff)' : 'none',
+                    fontSize: 24,
+                    animation: 'ballSpin 0.52s linear',
                   }}>⚽</div>
               )}
 
-              {/* Goalkeeper */}
-              <GoalkeeperSVG zone={gkZone} />
+              {/* ── BIG Goalkeeper ── */}
+              <Goalkeeper zone={gkZone} holdingBall={holdingBall} />
             </div>
 
-            {/* Posts */}
+            {/* Posts bottom */}
             <div className="flex justify-between -mt-0.5">
-              <div className="w-2 h-3 bg-white rounded-b-sm"/>
-              <div className="w-2 h-3 bg-white rounded-b-sm"/>
+              <div className="w-2.5 h-4 bg-white rounded-b-sm"/>
+              <div className="w-2.5 h-4 bg-white rounded-b-sm"/>
             </div>
           </div>
         </div>
 
         {/* Result banner */}
         {phase === 'result' && isGoal !== null && (
-          <div className={`absolute bottom-3 left-4 right-4 z-30 text-center py-3 rounded-2xl font-black text-3xl shadow-2xl animate-bounce-in ${
+          <div className={`absolute bottom-3 left-4 right-4 z-40 text-center py-3 rounded-2xl font-black text-3xl shadow-2xl animate-bounce-in ${
             isGoal
               ? 'bg-gradient-to-r from-green-500 to-emerald-400 text-white'
               : 'bg-gradient-to-r from-red-700 to-red-500 text-white'
@@ -386,49 +398,46 @@ export default function PenaltyScreen({ socket, player }) {
       </div>
 
       {/* ── PITCH ─────────────────────────────────────────────────────────── */}
-      <div className="relative flex flex-col items-center justify-start pt-5" style={{
-        flex: '0 0 46%',
-        background: 'linear-gradient(180deg,#1e7a35 0%,#196830 40%,#145224 100%)',
-        borderTop: '3px solid rgba(255,255,255,0.45)',
+      <div className="relative flex flex-col items-center justify-start pt-4" style={{
+        flex: '0 0 44%',
+        background: 'linear-gradient(180deg,#1e7a35 0%,#196830 45%,#145224 100%)',
+        borderTop: '4px solid rgba(255,255,255,0.5)',
       }}>
-        {/* Pitch markings */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-14 border-2 border-white/20 border-t-0 rounded-b-full"/>
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-white/50"/>
+        <div className="absolute top-7 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white/60"/>
         <div className="absolute inset-0 opacity-10" style={{
           backgroundImage:'repeating-linear-gradient(180deg,transparent 0px,transparent 20px,rgba(0,0,0,0.25) 20px,rgba(0,0,0,0.25) 40px)',
         }}/>
 
-        {/* Ball */}
+        {/* Ball on pitch */}
         {!ballFlying ? (
-          <div className="relative z-10 mt-3" style={{
-            fontSize: 60, cursor:'grab',
-            filter:'drop-shadow(0 6px 14px rgba(0,0,0,0.65))',
-            transition: 'transform 0.1s',
-            transform: aimZone !== null ? 'scale(1.08)' : 'scale(1)',
+          <div className="relative z-10 mt-2" style={{
+            fontSize: 62,
+            filter:'drop-shadow(0 6px 14px rgba(0,0,0,0.7))',
+            transform: aimZone !== null ? 'scale(1.1)' : 'scale(1)',
+            transition: 'transform 0.15s',
           }}>⚽</div>
         ) : (
-          <div className="relative z-10 mt-3 opacity-15" style={{ fontSize: 60 }}>⚽</div>
+          <div className="relative z-10 mt-2 opacity-10" style={{ fontSize: 62 }}>⚽</div>
         )}
 
-        {/* Aim indicator */}
+        {/* Aim label */}
         {phase === 'ready' && aimZone !== null && (
           <div className="mt-2 text-center z-10 animate-fade-in">
-            <div className="bg-yellow-400/20 border border-yellow-400/40 rounded-xl px-4 py-1.5">
-              <span className="text-yellow-300 font-black text-sm">
-                Aiming: {['Left Corner','Left Centre','Centre','Right Centre','Right Corner'][aimZone]}
-              </span>
+            <div className="bg-yellow-400/20 border border-yellow-400/50 rounded-xl px-4 py-1.5 inline-block">
+              <span className="text-yellow-200 font-black text-sm">{ZONE_LABELS[aimZone]}</span>
             </div>
             <p className="text-white/40 text-xs mt-1">Release to shoot!</p>
           </div>
         )}
 
         {phase === 'ready' && aimZone === null && (
-          <div className="mt-3 text-center z-10 animate-fade-in px-4">
+          <div className="mt-2 text-center z-10 px-4">
             <p className="text-white/90 font-black text-xl">Flick Up to Shoot!</p>
-            <p className="text-white/45 text-sm mt-1">Swipe left/right to aim · 5 zones</p>
-            <div className="flex justify-center gap-5 mt-3">
+            <p className="text-white/45 text-sm mt-0.5">Swipe left/right to aim · 5 zones</p>
+            <div className="flex justify-center gap-5 mt-2">
               <span className="text-white/25 text-xl animate-bounce" style={{animationDelay:'0s'}}>↖</span>
-              <span className="text-white/50 text-2xl animate-bounce" style={{animationDelay:'0.1s'}}>↑</span>
+              <span className="text-white/55 text-2xl animate-bounce" style={{animationDelay:'0.1s'}}>↑</span>
               <span className="text-white/25 text-xl animate-bounce" style={{animationDelay:'0.2s'}}>↗</span>
             </div>
           </div>
@@ -441,7 +450,7 @@ export default function PenaltyScreen({ socket, player }) {
 
       <style>{`
         @keyframes ballSpin{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
-        @keyframes netShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+        @keyframes netShake{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
       `}</style>
     </div>
   );
