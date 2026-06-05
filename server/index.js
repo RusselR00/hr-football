@@ -57,7 +57,7 @@ function createFreshGame() {
     roomCode: 'DEEP24',
     sessionId: null,
     quizIndex: 0, quizTimer: null, quizAnswers: {}, questionStart: 0,
-    guessIndex: 0, guessClueIndex: 0, guessTimer: null, guessAnswers: {},
+    guessIndex: 0, guessClueIndex: 0, guessTimer: null, guessAnswers: {}, clueStartedAt: 0,
     penaltyShots: {}, penaltyDone: new Set(), penaltyTimer: null,
   };
 }
@@ -75,22 +75,62 @@ function persistScores() {
 
 function syncSocketToPhase(socket) {
   const p = game.phase;
+  const now = Date.now();
+
+  // Always send current leaderboard to this socket only
+  socket.emit('leaderboard', getLeaderboard());
+
   if (p === 'lobby') {
-    socket.emit('game:reset');
     if (game.players[socket.id])
-      socket.emit('join:success', { player: game.players[socket.id], roomCode: game.roomCode });
+      socket.emit('join:success', { player: game.players[socket.id], roomCode: game.roomCode, rejoined: true });
+
   } else if (p === 'quiz') {
     const q = QUIZ_QUESTIONS[game.quizIndex];
-    if (q) socket.emit('quiz:question', { index: game.quizIndex, total: QUIZ_QUESTIONS.length, question: q.q, options: q.options, timeLimit: 20 });
+    if (!q) return;
+    const elapsed = Math.floor((now - game.questionStart) / 1000);
+    const remaining = Math.max(1, 20 - elapsed);
+    const alreadyAnswered = game.quizAnswers[socket.id];
+    socket.emit('quiz:question', {
+      index: game.quizIndex, total: QUIZ_QUESTIONS.length,
+      question: q.q, options: q.options,
+      timeLimit: remaining,           // remaining time only
+      alreadyAnswered: alreadyAnswered?.optionIndex ?? null,
+    });
+
   } else if (p === 'quiz-done') {
     socket.emit('round:end', { round: 'quiz', message: '⚽ Quiz Round Complete!' });
+
   } else if (p === 'guess-player') {
     const gp = GUESS_PLAYERS[game.guessIndex];
-    if (gp) socket.emit('guess:clue', { index: game.guessIndex, total: GUESS_PLAYERS.length, clues: gp.clues.slice(0, game.guessClueIndex + 1), clueNum: game.guessClueIndex + 1, maxPoints: Math.max(200, 1000 - game.guessClueIndex * 200) });
+    if (!gp) return;
+    const clueElapsed = Math.floor((now - (game.clueStartedAt || now)) / 1000);
+    const clueRemaining = Math.max(1, 8 - clueElapsed);
+    const alreadyAnswered = !!game.guessAnswers[socket.id];
+    socket.emit('guess:clue', {
+      index: game.guessIndex, total: GUESS_PLAYERS.length,
+      clues: gp.clues.slice(0, game.guessClueIndex + 1),
+      clueNum: game.guessClueIndex + 1,
+      maxPoints: Math.max(200, 1000 - game.guessClueIndex * 200),
+      timePerClue: clueRemaining,
+      alreadyAnswered,
+    });
+
   } else if (p === 'guess-done') {
     socket.emit('round:end', { round: 'guess', message: '🕵️ Guess the Player Complete!' });
+
   } else if (p === 'penalty') {
-    socket.emit('penalty:start', { totalKicks: TOTAL_KICKS });
+    const shots = game.penaltyShots[socket.id] || [];
+    if (shots.length >= TOTAL_KICKS) {
+      // Already finished all kicks
+      const goals = game.players[socket.id]?.penaltyGoals || 0;
+      socket.emit('penalty:done', { goals, pts: game.players[socket.id]?.roundScores?.penalty || 0, totalKicks: TOTAL_KICKS });
+    } else if (shots.length > 0) {
+      // Resume from where they left off — replay each result then set next kick
+      socket.emit('penalty:resume', { shots, nextKick: shots.length + 1, totalKicks: TOTAL_KICKS });
+    } else {
+      socket.emit('penalty:start', { totalKicks: TOTAL_KICKS });
+    }
+
   } else if (p === 'winner') {
     const lb = getLeaderboard();
     socket.emit('game:winner', { leaderboard: lb, winner: lb[0] });
@@ -189,7 +229,8 @@ function revealGuessClue() {
   const player = GUESS_PLAYERS[game.guessIndex];
   const clues = player.clues.slice(0, game.guessClueIndex + 1);
   const maxPts = Math.max(200, 1000 - game.guessClueIndex * 200);
-  io.emit('guess:clue', { index: game.guessIndex, total: GUESS_PLAYERS.length, clues, clueNum: game.guessClueIndex + 1, maxPoints: maxPts });
+  game.clueStartedAt = Date.now();
+  io.emit('guess:clue', { index: game.guessIndex, total: GUESS_PLAYERS.length, clues, clueNum: game.guessClueIndex + 1, maxPoints: maxPts, timePerClue: 8 });
   clearTimeout(game.guessTimer);
   game.guessTimer = setTimeout(() => {
     if (game.guessClueIndex < player.clues.length - 1) { game.guessClueIndex++; revealGuessClue(); }

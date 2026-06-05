@@ -25,6 +25,20 @@ export default function PenaltyScreen({ socket, player }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
+    // Reconnect mid-penalty: restore existing shots and jump to next kick
+    const onResume = ({ shots, nextKick, totalKicks }) => {
+      const hist = shots.map(s => ({ goal: s.goal }));
+      const goalCount = hist.filter(h => h.goal).length;
+      setHistory(hist);
+      setGoals(goalCount);
+      setKickNum(nextKick);
+      setPhase('ready');
+      setBallFlying(false);
+      setGkDir(null);
+      setIsGoal(null);
+      hasShot.current = false;
+    };
+
     const onKickResult = ({ dir, goalkeeperDir, goal, kickNum: k, totalKicks }) => {
       setGkDir(goalkeeperDir);
       setBallTarget(BALL_TARGETS[dir]);
@@ -58,10 +72,12 @@ export default function PenaltyScreen({ socket, player }) {
       }, 2500);
     };
 
+    socket.on('penalty:resume',      onResume);
     socket.on('penalty:kick-result', onKickResult);
     socket.on('penalty:done',        onDone);
 
     return () => {
+      socket.off('penalty:resume',      onResume);
       socket.off('penalty:kick-result', onKickResult);
       socket.off('penalty:done',        onDone);
     };

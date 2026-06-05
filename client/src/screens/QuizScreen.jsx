@@ -16,16 +16,19 @@ export default function QuizScreen({ socket, quizData, quizReveal }) {
   const explRef = useRef(null);
 
   useEffect(() => {
-    setSelected(null);
+    // alreadyAnswered is set when server syncs a reconnecting player
+    const pre = quizData?.alreadyAnswered ?? null;
+    setSelected(pre);
     setFeedback(null);
-    setTimeLeft(quizData?.timeLimit || 20);
+    setTimeLeft(quizData?.timeLimit || 20); // server sends remaining time on sync
   }, [quizData?.index]);
 
   useEffect(() => {
     if (!quizData) return;
+    // Use a ref to avoid stale closure; restart whenever question or timeLimit changes
     const iv = setInterval(() => setTimeLeft(t => Math.max(0, t - 1)), 1000);
     return () => clearInterval(iv);
-  }, [quizData?.index]);
+  }, [quizData?.index, quizData?.timeLimit]);
 
   useEffect(() => {
     if (!quizReveal) return;

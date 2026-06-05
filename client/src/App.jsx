@@ -72,7 +72,8 @@ export default function App() {
     socket.on('guess:clue',   data => { setGuessData(data); setScreen('guess'); });
     socket.on('guess:reveal', data => setGuessData(prev => ({ ...prev, revealed: data.answer })));
 
-    socket.on('penalty:start', () => { setScreen('penalty'); });
+    socket.on('penalty:start',  () => { setScreen('penalty'); });
+    socket.on('penalty:resume', () => { setScreen('penalty'); }); // reconnect mid-penalty
 
     socket.on('round:end',   data => { setRoundEnd(data); setScreen('leaderboard'); });
     socket.on('game:winner', data => { setWinner(data); setScreen('winner'); });

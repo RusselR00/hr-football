@@ -6,7 +6,12 @@ export default function GuessPlayerScreen({ socket, guessData }) {
 
   useEffect(() => {
     setAnswer('');
-    setStatus(null);
+    // If server says this player already answered this player correctly
+    if (guessData?.alreadyAnswered) {
+      setStatus({ type: 'correct', pts: 0 });
+    } else {
+      setStatus(null);
+    }
   }, [guessData?.index]);
 
   useEffect(() => {
