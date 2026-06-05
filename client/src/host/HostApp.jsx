@@ -3,12 +3,11 @@ import { socket } from '../socket';
 import { QRCodeSVG } from 'qrcode.react';
 
 const PHASES = {
-  lobby: { label: 'Lobby', next: 'Start Quiz', event: 'host:start-quiz', color: 'blue' },
-  quiz: { label: '⚽ Quiz Round', next: 'Start Guess Player', event: 'host:start-guess', color: 'green' },
-  'guess-player': { label: '🕵️ Guess Player', next: 'Start Predictions', event: 'host:start-predict', color: 'purple' },
-  predict: { label: '🎯 Predict Score', next: 'Start Penalty Shootout', event: 'host:start-penalty', color: 'orange' },
-  penalty: { label: '🥅 Penalty Shootout', next: null, event: null, color: 'red' },
-  winner: { label: '🏆 Game Over', next: 'Reset Game', event: 'host:reset', color: 'yellow' },
+  lobby:        { label: 'Lobby',              next: 'Start Quiz',             event: 'host:start-quiz',    color: 'blue' },
+  quiz:         { label: '⚽ Quiz Round',       next: 'Start Guess the Player', event: 'host:start-guess',   color: 'green' },
+  'guess-player':{ label: '🕵️ Guess Player',   next: 'Start Penalty Shootout', event: 'host:start-penalty', color: 'purple' },
+  penalty:      { label: '🥅 Penalty Shootout', next: null,                     event: null,                 color: 'red' },
+  winner:       { label: '🏆 Game Over',        next: 'Reset Game',             event: 'host:reset',         color: 'yellow' },
 };
 
 export default function HostApp() {
@@ -34,7 +33,6 @@ export default function HostApp() {
 
     socket.on('quiz:question', ({ index }) => setPhase('quiz'));
     socket.on('guess:clue', () => setPhase('guess-player'));
-    socket.on('predict:match', () => setPhase('predict'));
     socket.on('penalty:kick', () => setPhase('penalty'));
     socket.on('game:winner', () => setPhase('winner'));
     socket.on('game:reset', () => { setPhase('lobby'); setPlayers({}); setLeaderboard([]); });

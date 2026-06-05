@@ -48,11 +48,6 @@ const GUESS_PLAYERS = [
   { clues: ['Norwegian 🇳🇴','Known for clinical finishing','Broke Premier League scoring records','Plays for Manchester City'], answer: 'Erling Haaland' },
 ];
 
-const PREDICT_MATCHES = [
-  { home: 'Real Madrid', away: 'Barcelona',  homeFlag: '🇪🇸', awayFlag: '🇪🇸' },
-  { home: 'Brazil',      away: 'Argentina',  homeFlag: '🇧🇷', awayFlag: '🇦🇷' },
-  { home: 'Man City',    away: 'Liverpool',  homeFlag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', awayFlag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-];
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -67,7 +62,6 @@ function createFreshGame() {
     sessionId: null,
     quizIndex: 0, quizTimer: null, quizAnswers: {}, questionStart: 0,
     guessIndex: 0, guessClueIndex: 0, guessTimer: null, guessAnswers: {},
-    predictIndex: 0, predictTimer: null, predictAnswers: {},
     penaltyRound: 0, penaltyTimer: null, penaltyKickAnswers: {}, penaltyShots: {},
   };
 }
@@ -174,47 +168,6 @@ function endGuessRound() {
   broadcastLeaderboard();
 }
 
-// ─── Predict ──────────────────────────────────────────────────────────────────
-
-function startPredictRound() {
-  game.phase = 'predict';
-  game.predictIndex = 0;
-  game.predictAnswers = {};
-  sendPredictMatch();
-}
-
-function sendPredictMatch() {
-  if (game.predictIndex >= PREDICT_MATCHES.length) { endPredictRound(); return; }
-  game.predictAnswers = {};
-  io.emit('predict:match', { index: game.predictIndex, total: PREDICT_MATCHES.length, match: PREDICT_MATCHES[game.predictIndex], timeLimit: 30 });
-  clearTimeout(game.predictTimer);
-  game.predictTimer = setTimeout(revealPredictResult, 30000);
-}
-
-function revealPredictResult() {
-  clearTimeout(game.predictTimer);
-  const actualHome = Math.floor(Math.random() * 4);
-  const actualAway = Math.floor(Math.random() * 3);
-  const results = [];
-  Object.entries(game.predictAnswers).forEach(([sid, { home, away }]) => {
-    const diff = Math.abs(home - actualHome) + Math.abs(away - actualAway);
-    const pts = diff === 0 ? 1000 : diff === 1 ? 500 : diff === 2 ? 200 : 0;
-    if (pts > 0) {
-      game.players[sid].score += pts;
-      game.players[sid].roundScores.predict = (game.players[sid].roundScores.predict || 0) + pts;
-      results.push({ sid, pts });
-    }
-  });
-  io.emit('predict:reveal', { actualHome, actualAway, results });
-  broadcastLeaderboard();
-  setTimeout(() => { game.predictIndex++; sendPredictMatch(); }, 5000);
-}
-
-function endPredictRound() {
-  io.emit('round:end', { round: 'predict', message: '🎯 Prediction Round Complete!' });
-  broadcastLeaderboard();
-}
-
 // ─── Penalty ──────────────────────────────────────────────────────────────────
 
 function startPenaltyRound() {
@@ -307,15 +260,13 @@ io.on('connection', socket => {
 
   socket.on('host:start-quiz',    safe(() => { if (socket.id === game.hostId) startQuiz(); }));
   socket.on('host:start-guess',   safe(() => { if (socket.id === game.hostId) startGuessPlayer(); }));
-  socket.on('host:start-predict', safe(() => { if (socket.id === game.hostId) startPredictRound(); }));
   socket.on('host:start-penalty', safe(() => { if (socket.id === game.hostId) startPenaltyRound(); }));
 
   socket.on('host:skip', safe(() => {
     if (socket.id !== game.hostId) return;
-    if (game.phase === 'quiz')         { clearTimeout(game.quizTimer);    revealQuizAnswer();    }
-    if (game.phase === 'guess-player') { clearTimeout(game.guessTimer);   revealGuessAnswer();   }
-    if (game.phase === 'predict')      { clearTimeout(game.predictTimer); revealPredictResult(); }
-    if (game.phase === 'penalty')      { clearTimeout(game.penaltyTimer); resolvePenaltyKick();  }
+    if (game.phase === 'quiz')         { clearTimeout(game.quizTimer);  revealQuizAnswer();   }
+    if (game.phase === 'guess-player') { clearTimeout(game.guessTimer); revealGuessAnswer();   }
+    if (game.phase === 'penalty')      { clearTimeout(game.penaltyTimer); resolvePenaltyKick(); }
   }));
 
   socket.on('host:reset', safe(() => {
@@ -351,12 +302,6 @@ io.on('connection', socket => {
     } else {
       socket.emit('guess:wrong');
     }
-  }));
-
-  socket.on('predict:submit', safe(({ home, away } = {}) => {
-    if (game.phase !== 'predict' || game.predictAnswers[socket.id] || !game.players[socket.id]) return;
-    game.predictAnswers[socket.id] = { home: Math.max(0, parseInt(home) || 0), away: Math.max(0, parseInt(away) || 0) };
-    socket.emit('predict:submitted');
   }));
 
   socket.on('penalty:shoot', safe(({ direction } = {}) => {

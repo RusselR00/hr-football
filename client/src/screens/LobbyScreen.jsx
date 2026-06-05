@@ -42,11 +42,10 @@ export default function LobbyScreen({ player, leaderboard }) {
       </div>
 
       {/* Rounds preview */}
-      <div className="w-full max-w-sm mt-4 grid grid-cols-4 gap-2 animate-fade-in">
+      <div className="w-full max-w-sm mt-4 grid grid-cols-3 gap-2 animate-fade-in">
         {[
           { icon: '⚽', label: 'Quiz' },
           { icon: '🕵️', label: 'Guess' },
-          { icon: '🎯', label: 'Predict' },
           { icon: '🥅', label: 'Penalty' },
         ].map(({ icon, label }) => (
           <div key={label} className="bg-white/5 border border-white/10 rounded-2xl py-3 flex flex-col items-center gap-1">
