@@ -1,0 +1,51 @@
+{
+  "_governance": "governance-kit 1.1.0 — project-level enforcement that travels with the repository. Source: agentic-engineering-governance/repo-kit. Do not edit here; change the kit and re-apply.",
+  "enableAllProjectMcpServers": false,
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.development)",
+      "Read(./.env.production)",
+      "Read(./.env.development.local)",
+      "Read(./.env.production.local)",
+      "Read(./.env.test.local)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.pfx)",
+      "Read(./**/*.p12)",
+      "Edit(./.env)",
+      "Edit(./.env.local)",
+      "Edit(./.env.production)",
+      "Edit(./**/*.pem)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git commit --no-verify *)"
+    ],
+    "ask": [
+      "Bash(git push)",
+      "Bash(git push *)",
+      "Bash(git merge *)",
+      "Bash(gh pr merge *)",
+      "Bash(npm run db:push)",
+      "Bash(npm run db:push *)",
+      "Bash(npm run db:migrate)",
+      "Bash(npm run db:migrate *)",
+      "Bash(npm run db:seed)",
+      "Bash(npm run db:seed *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Read|Edit|Write|NotebookEdit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/governance.js\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

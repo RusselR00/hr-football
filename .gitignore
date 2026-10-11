@@ -5,3 +5,20 @@ dist/
 *.log
 server/game.db
 server/logs/
+
+# governance-kit:start — secrets and local agent state must never be committed (managed block)
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.local.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.ppk
+id_rsa
+id_ed25519
+.claude/settings.local.json
+.claude/audit/
+# governance-kit:end

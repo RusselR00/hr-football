@@ -1,0 +1,17 @@
+#!/bin/sh
+# governance-kit 1.1.0 — provenance trailer.
+# When a commit is created from inside a Claude Code session, the Bash/PowerShell tool environment
+# carries CLAUDE_CODE_SESSION_ID. This hook records it as a git trailer so every agent-made commit
+# can be traced to the session's audit log (~/.claude/governance/audit, sessions) and transcript.
+# Installed into .git/hooks/ by agentic-engineering-governance/scripts/apply-repo-kit.js
+# (or by hand: cp .githooks/prepare-commit-msg .git/hooks/ && chmod +x .git/hooks/prepare-commit-msg).
+msgfile="$1"
+source="$2"
+case "$source" in merge|squash) exit 0 ;; esac
+if [ -n "$CLAUDE_CODE_SESSION_ID" ]; then
+  git interpret-trailers --in-place --if-exists doNothing \
+    --trailer "Agent-Session: $CLAUDE_CODE_SESSION_ID" \
+    --trailer "Agent-Tool: claude-code${CLAUDE_CODE_ENTRYPOINT:+/$CLAUDE_CODE_ENTRYPOINT}" \
+    "$msgfile" 2>/dev/null || true
+fi
+exit 0

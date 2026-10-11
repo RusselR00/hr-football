@@ -1,0 +1,45 @@
+# governance-kit 1.1.0 — pull-request verification: type check, lint.
+# Runs on pull requests only, so it never slows a deploy from main. Repositories with their own
+# CI (database-backed test suites) keep it; this is the minimum every PR must pass.
+# Works with npm (package-lock.json), pnpm (pnpm-lock.yaml) or no lockfile (npm install).
+name: Checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+      - name: Install
+        run: |
+          if [ -f pnpm-lock.yaml ]; then npm i -g pnpm@10 && pnpm install --frozen-lockfile
+          elif [ -f package-lock.json ]; then npm ci
+          else npm install; fi
+      - name: Generate framework types
+        # Next.js generates PageProps/LayoutProps into .next/types during dev/build; a fresh runner has none.
+        if: hashFiles('next.config.js', 'next.config.mjs', 'next.config.ts') != ''
+        run: npx --no-install next typegen || echo "next typegen not available in this Next version — skipped"
+      - name: Typecheck
+        run: if [ -f pnpm-lock.yaml ]; then pnpm run --if-present typecheck; else npm run typecheck --if-present; fi
+      - name: Lint
+        run: if [ -f pnpm-lock.yaml ]; then pnpm run --if-present lint; else npm run lint --if-present; fi
+        # Lint was already failing (or untested) when the kit was applied; reported, not gated, until it is clean
+        # (risk register R-009). Remove these two lines to make it a gate.
+        continue-on-error: true

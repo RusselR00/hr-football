@@ -1,0 +1,4 @@
+# governance-kit 1.1.0 — review ownership. GitHub requests a review from the owner on every PR.
+# (Required reviews cannot be *enforced* on a private repository on the GitHub Free plan; see
+#  agentic-engineering-governance/registers/risk-register.csv R-003.)
+* @RusselR00

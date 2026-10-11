@@ -1,0 +1,4 @@
+{
+  "_comment": "governance-kit — time-boxed, named risk acceptances for the npm audit gate (.github/scripts/audit-gate.js). An entry needs package, reason, approved_by and expires (YYYY-MM-DD); expired or incomplete entries are ignored. Record the same acceptance in agentic-engineering-governance/templates/exception-approval.md.",
+  "dependencies": []
+}
