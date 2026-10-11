@@ -1,0 +1,45 @@
+# governance-kit 1.1.0 — infrastructure/container configuration scan (Trivy misconfiguration + image vulnerabilities).
+# Applied only to repositories that carry a Dockerfile, docker-compose, Terraform or similar.
+# Reports (not a hard gate yet): HIGH/CRITICAL findings are summarised and kept as evidence for 90 days.
+name: IaC scan
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: "41 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    name: Trivy (misconfig + vuln)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scanners: misconfig,vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          output: trivy.txt
+          exit-code: "0"
+      - name: Summary
+        if: always()
+        run: |
+          echo '### Trivy (HIGH/CRITICAL, misconfig + vuln)' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          head -c 60000 trivy.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: trivy-report
+          path: trivy.txt
+          retention-days: 90

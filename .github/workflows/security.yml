@@ -1,0 +1,146 @@
+# governance-kit 1.1.0 — automated security verification (NIST SSDF PW.7/PW.8/RV.1; OWASP Agentic ASI-03/05).
+# Runs on every pull request and push to the default branch, plus weekly. Reports are kept as
+# workflow artifacts for 90 days as audit evidence. Source: agentic-engineering-governance/repo-kit.
+# Stack-aware: gitleaks and semgrep always run; the dependency jobs run only for the lockfiles present.
+#
+# Gates (fail the check):
+#   - gitleaks:   any secret in the full git history or the diff
+#   - semgrep:    any ERROR-severity finding (p/default + p/secrets rulesets)
+#   - npm/pnpm:   any HIGH/CRITICAL vulnerability in *production* dependencies not listed, with an
+#                 expiry and an approver, in .security-exceptions.json
+#   - pip-audit:  any known vulnerability in requirements.txt not listed in .security-exceptions.json
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    # Job-level `if:` is evaluated before a runner exists, so hashFiles() cannot be used there; this job
+    # looks at the checkout and tells the dependency jobs which stacks are present.
+    name: Detect stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      node: ${{ steps.d.outputs.node }}
+      python: ${{ steps.d.outputs.python }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: d
+        run: |
+          if [ -f package-lock.json ] || [ -f pnpm-lock.yaml ]; then echo "node=true" >> "$GITHUB_OUTPUT"; else echo "node=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -f requirements.txt ]; then echo "python=true" >> "$GITHUB_OUTPUT"; else echo "python=false" >> "$GITHUB_OUTPUT"; fi
+
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # the action lists the PR's commits to scope the scan
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false" # findings go to the job summary + SARIF artifact, not PR comments
+
+  sast:
+    name: Static analysis (semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: semgrep/semgrep:1.180.0
+    env:
+      SEMGREP_SEND_METRICS: "off"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Scan
+        run: semgrep scan --config p/default --config p/secrets --metrics=off --json --output semgrep.json --exclude node_modules --exclude .next --exclude dist --exclude .venv
+      - name: Gate on ERROR-severity findings
+        run: python3 .github/scripts/semgrep-gate.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: semgrep-report
+          path: semgrep.json
+          retention-days: 90
+
+  dependencies-node:
+    name: Dependency audit + SBOM (npm/pnpm)
+    needs: detect
+    if: needs.detect.outputs.node == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+      - name: Install (lockfile only, no scripts)
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            npm i -g pnpm@10
+            pnpm install --frozen-lockfile --ignore-scripts
+          else
+            npm ci --ignore-scripts
+          fi
+      - name: Audit production dependencies
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm audit --prod --json > npm-audit.json || true
+          else
+            npm audit --omit=dev --json > npm-audit.json || true
+          fi
+          node .github/scripts/audit-gate.mjs
+      - name: SBOM (CycloneDX)
+        if: always() && hashFiles('package-lock.json') != ''
+        run: npm sbom --sbom-format cyclonedx --omit dev > sbom.cdx.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: dependency-reports
+          path: |
+            npm-audit.json
+            sbom.cdx.json
+          retention-days: 90
+          if-no-files-found: ignore
+
+  dependencies-python:
+    name: Dependency audit (pip-audit)
+    needs: detect
+    if: needs.detect.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: pip-audit
+        run: |
+          python -m pip install --quiet pip-audit
+          pip-audit -r requirements.txt --format json --output pip-audit.json --progress-spinner off || true
+          python3 .github/scripts/pip-audit-gate.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: pip-audit-report
+          path: pip-audit.json
+          retention-days: 90
+          if-no-files-found: ignore
